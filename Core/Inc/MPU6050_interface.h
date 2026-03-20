@@ -11,6 +11,21 @@
 #define GYRO_CONFIG_REG 0x1B
 #define ACCEL_CONFIG_REG 0x1C
 
+#define ACCEL_XOUT_H_REG 0x3B
+#define ACCEL_XOUT_L_REG 0x3C
+#define ACCEL_YOUT_H_REG 0x3D
+#define ACCEL_YOUT_L_REG 0x3E
+#define ACCEL_ZOUT_H_REG 0x3F
+#define ACCEL_ZOUT_L_REG 0x40
+#define GYRO_XOUT_H_REG 0x43
+#define GYRO_XOUT_L_REG 0x44
+#define GYRO_YOUT_H_REG 0x45
+#define GYRO_YOUT_L_REG 0x46
+#define GYRO_ZOUT_H_REG 0x47
+#define GYRO_ZOUT_L_REG 0x48
+
+
+
 struct MPU6050_Data {
     float Accel_X;
     float Accel_Y;
