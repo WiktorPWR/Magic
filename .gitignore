@@ -1,33 +1,47 @@
+# === Sekcja STM32 (Projekt w podfolderze STM32/) ===
+
 # Kompilacja i pliki binarne
-build/
-bin/
-obj/
-*.elf
-*.bin
-*.map
-*.hex
+STM32/build/
+STM32/bin/
+STM32/obj/
+STM32/*.elf
+STM32/*.bin
+STM32/*.map
+STM32/*.hex
 
 # Pliki tymczasowe CubeMX i CubeIDE
-mx.scratch
-*.launch
-*.pbi
-*.browse
-*.pbd
-*.tmp
-/Debug/
-/Release/
+STM32/mx.scratch
+STM32/*.launch
+STM32/*.pbi
+STM32/*.browse
+STM32/*.pbd
+STM32/*.tmp
+STM32/Debug/
+STM32/Release/
 
-# Specyficzne dla konkretnego komputera (ustawienia lokalne)
-.settings/
-.project
-.cproject
-*.swp
-*.bak
+# Specyficzne dla komputera / IDE
+STM32/.settings/
+STM32/.project
+STM32/.cproject
+STM32/.mxproject
+STM32/*.swp
+STM32/*.bak
 
-# Logi i śmieci systemowe
+# VS Code (odkomentuj jeśli nie chcesz wysyłać konfiguracji debuggera)
+# STM32/.vscode/
+
+# === Sekcja Python (Projekt w podfolderze Python_scripts/) ===
+
+Python_scripts/__pycache__/
+Python_scripts/*.pyc
+Python_scripts/*.pyo
+Python_scripts/*.pyd
+Python_scripts/.venv/
+Python_scripts/venv/
+Python_scripts/env/
+
+# === Ogólne śmieci systemowe ===
+
 *.log
 .DS_Store
 Thumbs.db
-
-# VS Code - odkomentuj poniższe, jeśli NIE CHCESZ dzielić się ustawieniami debuggera
-# .vscode/
