@@ -18,6 +18,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "CH340_interface.h"
+#include "stm32f411xe.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -102,11 +104,34 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    /* USER CODE END WHILE */
+  while (1) {
+    // 1. Odczytaj aktualny stan przycisku
+    GPIO_PinState current_button_state = HAL_GPIO_ReadPin(start_recording_GPIO_Port, start_recording_Pin);
 
-    /* USER CODE BEGIN 3 */
+    // 2. DETEKCJA ZBOCZA NARASTAJĄCEGO (0 -> 1)
+    if (current_button_state == GPIO_PIN_SET && last_button_state == GPIO_PIN_RESET) {
+        system_active = 1; // Startujemy proces
+        uart_data.recording = RECORDING;
+        // Opcjonalnie: HAL_Delay(50); // Prosty debouncing
+    }
+
+    // 3. DETEKCJA ZBOCZA OPADAJĄCEGO (1 -> 0)
+    if (current_button_state == GPIO_PIN_RESET && last_button_state == GPIO_PIN_SET) {
+        system_active = 0; // Zatrzymujemy proces
+        uart_data.recording = NOT_RECORDING;
+        // Opcjonalnie: HAL_Delay(50); // Prosty debouncing
+    }
+
+    // 4. WYKONANIE PROCESU (tylko jeśli system_active == 1)
+    if (system_active) {
+        Mode_setting(&uart_data);
+        MPU6050_Read_All(&mpu6050_data);
+        convert_mpu_data_to_uart(&mpu6050_data, &uart_data);
+        send_data_over_uart(&uart_data);
+    }
+
+    // 5. ZAPAMIĘTANIE STANU na następny obieg pętli
+    last_button_state = current_button_state;
   }
   /* USER CODE END 3 */
 }

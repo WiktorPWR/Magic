@@ -8,7 +8,8 @@
 enum Mode {
     MODE_1 = 0,
     MODE_2 = 1,
-    MODE_3 = 2
+    MODE_3 = 2,
+    NUMBER_OF_MODES
 };
 
 enum Recording{
@@ -27,9 +28,10 @@ struct UART_DATA{
     Recording recording;
 }
 
+extern struct UART_DATA uart_data;
 
 void send_data_over_uart(struct UART_DATA* data);
 
-
+void convert_mpu_data_to_uart(struct MPU6050_Data* mpu_data, struct UART_DATA* uart_data);
 
 #endif /* CH340_INTERFACE_H */

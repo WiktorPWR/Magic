@@ -1,5 +1,7 @@
 #include "CH340_interface.h"
 
+struct UART_DATA uart_data;
+
 void send_data_over_uart(struct UART_DATA* data) {
     uint8_t buffer[20];
     int index = 0;
@@ -24,4 +26,13 @@ void send_data_over_uart(struct UART_DATA* data) {
 
     // Send the buffer over UART
     HAL_UART_Transmit(&huart1, buffer, index, HAL_MAX_DELAY);
+}
+
+void convert_mpu_data_to_uart(struct MPU6050_Data* mpu_data, struct UART_DATA* uart_data) {
+    uart_data->Accel_X = mpu_data->Accel_X;
+    uart_data->Accel_Y = mpu_data->Accel_Y;
+    uart_data->Accel_Z = mpu_data->Accel_Z;
+    uart_data->Gyro_X = mpu_data->Gyro_X;
+    uart_data->Gyro_Y = mpu_data->Gyro_Y;
+    uart_data->Gyro_Z = mpu_data->Gyro_Z;
 }
