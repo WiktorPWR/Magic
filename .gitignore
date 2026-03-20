@@ -1,9 +1,33 @@
-build
+# Kompilacja i pliki binarne
+build/
+bin/
+obj/
+*.elf
+*.bin
+*.map
+*.hex
+
+# Pliki tymczasowe CubeMX i CubeIDE
 mx.scratch
-!.settings
+*.launch
+*.pbi
+*.browse
+*.pbd
+*.tmp
+/Debug/
+/Release/
 
-cmake/
+# Specyficzne dla konkretnego komputera (ustawienia lokalne)
+.settings/
+.project
+.cproject
+*.swp
+*.bak
 
-settings/
+# Logi i śmieci systemowe
+*.log
+.DS_Store
+Thumbs.db
 
-vscode/
+# VS Code - odkomentuj poniższe, jeśli NIE CHCESZ dzielić się ustawieniami debuggera
+# .vscode/
