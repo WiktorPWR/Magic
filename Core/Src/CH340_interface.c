@@ -1,9 +1,10 @@
 #include "CH340_interface.h"
+#include <string.h> 
 
 struct UART_DATA uart_data;
 
 void send_data_over_uart(struct UART_DATA* data) {
-    uint8_t buffer[20];
+    uint8_t buffer[30];
     int index = 0;
 
     // Convert float values to bytes and store in buffer

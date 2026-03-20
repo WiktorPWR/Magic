@@ -19,7 +19,10 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "CH340_interface.h"
+#include "MPU6050_interface.h"
+#include "GPIO_functions.h"
 #include "stm32f411xe.h"
+#include "stm32f4xx_hal_gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -107,7 +110,8 @@ int main(void)
   while (1) {
     // 1. Odczytaj aktualny stan przycisku
     GPIO_PinState current_button_state = HAL_GPIO_ReadPin(start_recording_GPIO_Port, start_recording_Pin);
-
+    GPIO_PinState last_button_state = GPIO_PIN_RESET; // Początkowo zakładamy, że przycisk nie jest wciśnięty
+    static uint8_t system_active = 0; // Flaga, która mówi, czy proces jest aktywny
     // 2. DETEKCJA ZBOCZA NARASTAJĄCEGO (0 -> 1)
     if (current_button_state == GPIO_PIN_SET && last_button_state == GPIO_PIN_RESET) {
         system_active = 1; // Startujemy proces

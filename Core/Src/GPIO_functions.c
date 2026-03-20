@@ -12,13 +12,13 @@ void Mode_setting(struct UART_DATA* data) {
     // 3. Wybieramy tryb na podstawie wzorca
     switch (button_pattern) {
         case 0b001: // Tylko przycisk 1
-            data->active_mode = MODE_1;
+            data->mode = MODE_1;
             break;
         case 0b010: // Tylko przycisk 2
-            data->active_mode = MODE_2;
+            data->mode = MODE_2;
             break;
         case 0b100: // Tylko przycisk 3
-            data->active_mode = MODE_3;
+            data->mode = MODE_3;
             break;
         case 0b000:
             // Opcjonalnie: żaden nie wciśnięty
