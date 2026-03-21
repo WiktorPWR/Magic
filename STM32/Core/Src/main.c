@@ -102,40 +102,64 @@ int main(void)
   MX_I2C1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+  MPU6050_Init();
+
+  // --- KONFIGURACJA PRÓBKOWANIA ---
+  uint32_t sampling_interval = 10; // Czas w ms (10ms = 100Hz, 20ms = 50Hz)
+  uint32_t last_sampling_time = 0;
+
+  // Zmienne stanowe (muszą być static lub poza pętlą)
+  static GPIO_PinState last_button_state = GPIO_PIN_RESET; 
+  static uint8_t system_active = 0;
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
   while (1) {
-    // 1. Odczytaj aktualny stan przycisku
-    GPIO_PinState current_button_state = HAL_GPIO_ReadPin(start_recording_GPIO_Port, start_recording_Pin);
-    GPIO_PinState last_button_state = GPIO_PIN_RESET; // Początkowo zakładamy, że przycisk nie jest wciśnięty
-    static uint8_t system_active = 0; // Flaga, która mówi, czy proces jest aktywny
-    // 2. DETEKCJA ZBOCZA NARASTAJĄCEGO (0 -> 1)
-    if (current_button_state == GPIO_PIN_SET && last_button_state == GPIO_PIN_RESET) {
-        system_active = 1; // Startujemy proces
-        uart_data.recording = RECORDING;
-        // Opcjonalnie: HAL_Delay(50); // Prosty debouncing
-    }
+      // 1. Odczytaj aktualny stan przycisku
+      GPIO_PinState current_button_state = HAL_GPIO_ReadPin(start_recording_GPIO_Port, start_recording_Pin);
 
-    // 3. DETEKCJA ZBOCZA OPADAJĄCEGO (1 -> 0)
-    if (current_button_state == GPIO_PIN_RESET && last_button_state == GPIO_PIN_SET) {
-        system_active = 0; // Zatrzymujemy proces
-        uart_data.recording = NOT_RECORDING;
-        // Opcjonalnie: HAL_Delay(50); // Prosty debouncing
-    }
+      // 2. DETEKCJA ZBOCZA NARASTAJĄCEGO (Wciśnięcie przycisku)
+      if (current_button_state == GPIO_PIN_SET && last_button_state == GPIO_PIN_RESET) {
+          system_active = 1;
+          uart_data.recording = 1; // Załóżmy, że 1 to RECORDING
+          HAL_Delay(50); // Prosty debouncing (eliminacja drgań styków)
+      }
 
-    // 4. WYKONANIE PROCESU (tylko jeśli system_active == 1)
-    if (system_active) {
-        Mode_setting(&uart_data);
-        MPU6050_Read_All(&mpu6050_data);
-        convert_mpu_data_to_uart(&mpu6050_data, &uart_data);
-        send_data_over_uart(&uart_data);
-    }
+      // 3. DETEKCJA ZBOCZA OPADAJĄCEGO (Puszczenie przycisku)
+      if (current_button_state == GPIO_PIN_RESET && last_button_state == GPIO_PIN_SET) {
+          system_active = 0;
+          uart_data.recording = 0; // Załóżmy, że 0 to NOT_RECORDING
+          
+          // Wyślij ostatnią paczkę z informacją, że recording = 0, 
+          // żeby Python wiedział, że trzeba zamknąć plik
+          send_data_over_uart(&uart_data); 
+          HAL_Delay(50); // Prosty debouncing
+      }
 
-    // 5. ZAPAMIĘTANIE STANU na następny obieg pętli
-    last_button_state = current_button_state;
+      // 4. WYKONANIE PROCESU W STAŁYCH ODSTĘPACH (tylko jeśli system_active == 1)
+      if (system_active) {
+          uint32_t current_time = HAL_GetTick();
+          
+          // Sprawdź, czy minął już czas określony w sampling_interval
+          if (current_time - last_sampling_time >= sampling_interval) {
+              last_sampling_time = current_time; // Zaktualizuj czas ostatniej próbki
+
+              // Pobierz dane
+              uart_data.timestamp = current_time; // Dodaj czas do struktury
+              Mode_setting(&uart_data);
+              MPU6050_Read_All(&mpu6050_data);
+              convert_mpu_data_to_uart(&mpu6050_data, &uart_data);
+              
+              // Wyślij dane
+              send_data_over_uart(&uart_data);
+          }
+      }
+
+      // 5. ZAPAMIĘTANIE STANU na następny obieg pętli
+      last_button_state = current_button_state;
   }
   /* USER CODE END 3 */
 }

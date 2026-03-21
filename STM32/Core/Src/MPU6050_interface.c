@@ -53,4 +53,5 @@ void MPU6050_Read_Gyro(struct MPU6050_Data* data) {
 void MPU6050_Read_All(struct MPU6050_Data* data) {
     MPU6050_Read_Accel(data);
     MPU6050_Read_Gyro(data);
+    data->timestamp = HAL_GetTick(); // Update timestamp
 }

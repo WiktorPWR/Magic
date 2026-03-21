@@ -24,6 +24,7 @@ struct UART_DATA{
     float Gyro_X;
     float Gyro_Y;
     float Gyro_Z;
+    uint32_t timestamp;
     enum Mode mode;
     enum Recording recording;
 };
