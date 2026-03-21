@@ -9,7 +9,7 @@ SERIAL_PORT = 'COM3'
 BAUD_RATE = 115200
 # Rozmiar: 6*4b (floats) + 4b (uint32 timestamp) + 1b (mode) + 1b (recording) = 30 bajtów
 DATA_SIZE = 30  
-BASE_DIR = "D:\\Pulpit\\STM\\Magic\\Magic\\Python_scripts\\data"
+BASE_DIR = "D:\\Pulpit\\STM\\Magic\\Magic\\Python_scripts\\raw_data"
 
 def get_csv_filename():
     """Generuje nazwę pliku sesji."""
