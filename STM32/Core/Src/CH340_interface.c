@@ -38,5 +38,4 @@ void convert_mpu_data_to_uart(struct MPU6050_Data* mpu_data, struct UART_DATA* u
     uart_data->Gyro_X = mpu_data->Gyro_X;
     uart_data->Gyro_Y = mpu_data->Gyro_Y;
     uart_data->Gyro_Z = mpu_data->Gyro_Z;
-    uart_data->timestamp = mpu_data->timestamp;
 }

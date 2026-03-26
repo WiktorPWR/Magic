@@ -33,7 +33,6 @@ struct MPU6050_Data {
     float Gyro_X;
     float Gyro_Y;
     float Gyro_Z;
-    uint32_t timestamp;
 };
 
 extern struct MPU6050_Data mpu6050_data;
