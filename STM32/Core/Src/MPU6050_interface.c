@@ -63,7 +63,7 @@ static struct MPU6050_Data last_known_data = {0};
 static uint8_t freeze_counter = 0;
 
 void MPU6050_Read_All(struct MPU6050_Data* data) {
-    // 1. Wykonaj swoje standardowe odczyty (zapisują do mpu6050_data)
+    // 1. Wykonaj swoje standardowe odczyty
     MPU6050_Read_Accel(data);
     MPU6050_Read_Gyro(data);
 
@@ -75,24 +75,38 @@ void MPU6050_Read_All(struct MPU6050_Data* data) {
         data->Gyro_Y  == last_known_data.Gyro_Y  && 
         data->Gyro_Z  == last_known_data.Gyro_Z) 
     {
-        // Jeśli KAŻDA z 6 wartości jest identyczna co do bita - inkrementuj licznik
         freeze_counter++;
     } else {
-        // Wystarczy, że jedna wartość się zmieniła - czujnik żyje!
         freeze_counter = 0; 
     }
 
-    // 3. Jeśli 5 razy z rzędu dostałeś identyczną "paczkę" danych -> REANIMACJA
+    // 3. Reanimacja po 5 identycznych odczytach
     if (freeze_counter >= 5) {
         freeze_counter = 0;
         
-        char alert[] = "!!! KRYTYCZNE ZAMROZENIE MPU6050 - Resetuje... !!!\r\n";
+        char alert[] = "\r\n!!! KRYTYCZNE ZAMROZENIE MPU6050 - Diagnostyka... !!!\r\n";
         HAL_UART_Transmit(&huart1, (uint8_t*)alert, strlen(alert), 100);
 
-        // Wywołaj inicjalizację, żeby obudzić czujnik i odświeżyć rejestry
-        MPU6050_Init(); 
+        // --- DODANY SKANER MAGISTRALI ---
+        char msg[64];
+        uint8_t found_any = 0;
+        for (uint8_t i = 1; i < 128; i++) {
+            if (HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t)(i << 1), 3, 5) == HAL_OK) {
+                int len = sprintf(msg, "Skaner: Znaleziono urzadzenie 0x%02X\r\n", i);
+                HAL_UART_Transmit(&huart1, (uint8_t*)msg, len, 100);
+                found_any = 1;
+            }
+        }
+        if (!found_any) {
+            char error_msg[] = "Skaner: MAGISTRALA PUSTA! Sprawdz kable.\r\n";
+            HAL_UART_Transmit(&huart1, (uint8_t*)error_msg, strlen(error_msg), 100);
+        }
+        // --------------------------------
+
+        // Próba ponownej inicjalizacji
+        //MPU6050_Init(); 
     }
 
-    // 4. Zapisz obecny stan jako "wzorzec" do porównania w następnej pętli
+    // 4. Zapisz obecny stan do porównania
     last_known_data = *data;
 }
