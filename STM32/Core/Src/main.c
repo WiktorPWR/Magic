@@ -18,11 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "CH340_interface.h"
-#include "MPU6050_interface.h"
-#include "GPIO_functions.h"
-#include "stm32f411xe.h"
-#include "stm32f4xx_hal_gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -102,64 +97,58 @@ int main(void)
   MX_I2C1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+  struct UART_DATA uart_data = {
+    .Accel_X = 0.0f,
+    .Accel_Y = 0.0f,
+    .Accel_Z = 0.0f,
+    .Gyro_X = 0.0f,
+    .Gyro_Y = 0.0f,
+    .Gyro_Z = 0.0f,
+    .mode = MODE_1, // Domyślny tryb
+    .recording = NOT_RECORDING // Domyślnie nie nagrywamy
+  };
+
+  char test[] = "Test połączenia!\r\n";
+  HAL_UART_Transmit(&huart1, (uint8_t*)test, strlen(test), 100);
+  HAL_Delay(1000);
+
+
+  char msg[64];
+  HAL_StatusTypeDef result;
+  uint8_t i;
+  uint8_t found_devices = 0;
+
+  for (i = 1; i < 128; i++) {
+      /* * HAL_I2C_IsDeviceReady sprawdza, czy urządzenie o danym adresie odpowie sygnałem ACK.
+      * Adres przesyłamy przesunięty o 1 bit w lewo (standard HAL).
+      */
+      result = HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t)(i << 1), 3, 5);
+      
+      if (result == HAL_OK) {
+          int len = sprintf(msg, "Znaleziono urzadzenie pod adresem: 0x%02X (HAL: 0x%02X)\r\n", i, (i << 1));
+          HAL_UART_Transmit(&huart1, (uint8_t*)msg, len, 100);
+          found_devices++;
+      }
+  }
+
+  if (found_devices == 0) {
+      char no_dev[] = "Nie znaleziono zadnych urzadzen I2C!\r\n";
+      HAL_UART_Transmit(&huart1, (uint8_t*)no_dev, strlen(no_dev), 100);
+  } else {
+      char done[] = "Skanowanie zakonczone.\r\n";
+      HAL_UART_Transmit(&huart1, (uint8_t*)done, strlen(done), 100);
+  }
+
   MPU6050_Init();
-
-  // --- KONFIGURACJA PRÓBKOWANIA ---
-  uint32_t sampling_interval = 10; // Czas w ms (10ms = 100Hz, 20ms = 50Hz)
-  uint32_t last_sampling_time = 0;
-
-  // Zmienne stanowe (muszą być static lub poza pętlą)
-  static GPIO_PinState last_button_state = GPIO_PIN_RESET; 
-  static uint8_t system_active = 0;
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  while (1)
+  {
+    /* USER CODE END WHILE */
 
-  while (1) {
-      // 1. Odczytaj aktualny stan przycisku
-      GPIO_PinState current_button_state = HAL_GPIO_ReadPin(start_recording_GPIO_Port, start_recording_Pin);
-
-      // 2. DETEKCJA ZBOCZA NARASTAJĄCEGO (Wciśnięcie przycisku)
-      if (current_button_state == GPIO_PIN_SET && last_button_state == GPIO_PIN_RESET) {
-          system_active = 1;
-          uart_data.recording = 1; // Załóżmy, że 1 to RECORDING
-          HAL_Delay(50); // Prosty debouncing (eliminacja drgań styków)
-      }
-
-      // 3. DETEKCJA ZBOCZA OPADAJĄCEGO (Puszczenie przycisku)
-      if (current_button_state == GPIO_PIN_RESET && last_button_state == GPIO_PIN_SET) {
-          system_active = 0;
-          uart_data.recording = 0; // Załóżmy, że 0 to NOT_RECORDING
-          
-          // Wyślij ostatnią paczkę z informacją, że recording = 0, 
-          // żeby Python wiedział, że trzeba zamknąć plik
-          send_data_over_uart(&uart_data); 
-          HAL_Delay(50); // Prosty debouncing
-      }
-
-      // 4. WYKONANIE PROCESU W STAŁYCH ODSTĘPACH (tylko jeśli system_active == 1)
-      if (system_active) {
-          uint32_t current_time = HAL_GetTick();
-          
-          // Sprawdź, czy minął już czas określony w sampling_interval
-          if (current_time - last_sampling_time >= sampling_interval) {
-              last_sampling_time = current_time; // Zaktualizuj czas ostatniej próbki
-
-              // Pobierz dane
-              uart_data.timestamp = current_time; // Dodaj czas do struktury
-              Mode_setting(&uart_data);
-              MPU6050_Read_All(&mpu6050_data);
-              convert_mpu_data_to_uart(&mpu6050_data, &uart_data);
-              
-              // Wyślij dane
-              send_data_over_uart(&uart_data);
-          }
-      }
-
-      // 5. ZAPAMIĘTANIE STANU na następny obieg pętli
-      last_button_state = current_button_state;
+    /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
