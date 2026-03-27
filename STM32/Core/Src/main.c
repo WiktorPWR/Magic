@@ -154,13 +154,13 @@ int main(void)
     if (current_btn == GPIO_PIN_SET && last_btn == GPIO_PIN_RESET) {
         system_active = 1;
         uart_data.recording = 1;
-        HAL_UART_Transmit(&huart1, (uint8_t*)"START\r\n", 7, 100);
+        //HAL_UART_Transmit(&huart1, (uint8_t*)"START\r\n", 7, 100);
     }
     // Zbocze opadające (Puszczenie)
     if (current_btn == GPIO_PIN_RESET && last_btn == GPIO_PIN_SET) {
         system_active = 0;
         uart_data.recording = 0;
-        HAL_UART_Transmit(&huart1, (uint8_t*)"STOP\r\n", 6, 100);
+        //HAL_UART_Transmit(&huart1, (uint8_t*)"STOP\r\n", 6, 100);
     }
     last_btn = current_btn;
 
@@ -179,7 +179,7 @@ int main(void)
         send_data_over_uart(&uart_data);
     }
 
-    HAL_Delay(50); // Częstotliwość pętli ok. 20Hz
+    HAL_Delay(10); // Częstotliwość pętli ok. 20Hz
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -278,7 +278,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
+  huart1.Init.BaudRate = 9600;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;

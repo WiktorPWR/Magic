@@ -7,34 +7,84 @@
 
 /// Global variable to hold MPU6050 data
 struct MPU6050_Data mpu6050_data;
+extern I2C_HandleTypeDef hi2c1; // Zewnętrzna deklaracja handlera I2C
+extern UART_HandleTypeDef huart1; // Zewnętrzna deklaracja handlera UART
 
 uint8_t check;
 uint8_t data;
 
-void MPU6050_Init(void) {
+
+void I2C_BusRecovery(void)
+{
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    // 1. Ustaw GPIO jako open-drain
+    GPIO_InitStruct.Pin = GPIO_PIN_6 | GPIO_PIN_7;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET); // SDA HIGH
+
+    // 2. Clock pulses na SCL
+    for(int i = 0; i < 9; i++)
+    {
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
+        HAL_Delay(1);
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
+        HAL_Delay(1);
+    }
+
+    // 3. STOP condition
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
+
+    HAL_Delay(1);
+}
+
+void I2C_Reset(void)
+{
+    HAL_I2C_DeInit(&hi2c1);
+    I2C_BusRecovery();
+    HAL_I2C_Init(&hi2c1);
+}
+
+
+uint8_t MPU6050_Init(void)
+{
     uint8_t check = 0;
     uint8_t data;
 
-    // 1. Sprawdź czy czujnik żyje (WHO_AM_I)
-    HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, WHO_AM_I_REG, I2C_MEMADD_SIZE_8BIT, &check, 1, 1000);
+    for(int attempt = 0; attempt < 3; attempt++)
+    {
+        if (HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, WHO_AM_I_REG,
+                             I2C_MEMADD_SIZE_8BIT, &check, 1, 100) == HAL_OK)
+        {
+            if (check == 0x68)
+            {
+                data = 0x00;
+                HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, PWR_MGMT_1_REG, I2C_MEMADD_SIZE_8BIT, &data, 1, 100);
 
-    if (check == 0x68) {
-        // 2. Wybudź czujnik (PWR_MGMT_1) - MPU6050 domyślnie startuje w uśpieniu!
-        data = 0x00; 
-        HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, PWR_MGMT_1_REG, I2C_MEMADD_SIZE_8BIT, &data, 1, 100);
+                data = 0x07;
+                HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, SMPRT_DIV_REG, I2C_MEMADD_SIZE_8BIT, &data, 1, 100);
 
-        // 3. Ustaw częstotliwość próbkowania (Sample Rate)
-        data = 0x07; // 125 Hz
-        HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, SMPRT_DIV_REG, I2C_MEMADD_SIZE_8BIT, &data, 1, 100);
+                data = 0x00;
+                HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, GYRO_CONFIG_REG, I2C_MEMADD_SIZE_8BIT, &data, 1, 100);
 
-        // 4. Konfiguracja żyroskopu (250 dps)
-        data = 0x00;
-        HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, GYRO_CONFIG_REG, I2C_MEMADD_SIZE_8BIT, &data, 1, 100);
+                data = 0x00;
+                HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, ACCEL_CONFIG_REG, I2C_MEMADD_SIZE_8BIT, &data, 1, 100);
 
-        // 5. Konfiguracja akcelerometru (2g)
-        data = 0x00;
-        HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, ACCEL_CONFIG_REG, I2C_MEMADD_SIZE_8BIT, &data, 1, 100);
+                return 1; // SUCCESS
+            }
+        }
+
+        // jak nie działa → reset I2C i próbuj jeszcze raz
+        I2C_Reset();
+        HAL_Delay(10);
     }
+
+    return 0; // FAIL
 }
 
 
@@ -104,7 +154,22 @@ void MPU6050_Read_All(struct MPU6050_Data* data) {
         // --------------------------------
 
         // Próba ponownej inicjalizacji
-        //MPU6050_Init(); 
+        char msg2[] = "Recovery: RESET I2C + MPU\r\n";
+        HAL_UART_Transmit(&huart1, (uint8_t*)msg2, strlen(msg2), 100);
+
+        I2C_Reset();
+
+        if (!MPU6050_Init())
+        {
+            char fail[] = "Recovery FAILED!\r\n";
+            HAL_UART_Transmit(&huart1, (uint8_t*)fail, strlen(fail), 100);
+        }
+        else
+        {
+            char ok[] = "Recovery OK!\r\n";
+            HAL_UART_Transmit(&huart1, (uint8_t*)ok, strlen(ok), 100);
+        }
+    
     }
 
     // 4. Zapisz obecny stan do porównania
