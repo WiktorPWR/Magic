@@ -1,8 +1,9 @@
 #ifndef MPU6050_INTERFACE_H
 #define MPU6050_INTERFACE_H
 
+#include <stdint.h>
 
-#define MPU6050_ADDR 0x68 << 1 // I2C address of MPU6050 (shifted for HAL library)
+#define MPU6050_ADDR (0x68 << 1) // I2C address of MPU6050 (shifted for HAL library)
 
 #define WHO_AM_I_REG 0x75
 #define PWR_MGMT_1_REG 0x6B
@@ -37,7 +38,7 @@ struct MPU6050_Data {
 
 extern struct MPU6050_Data mpu6050_data;
 
-void MPU6050_Init(void);
+uint8_t MPU6050_Init(void);
 
 void MPU6050_Read_Accel(struct MPU6050_Data* data);
 

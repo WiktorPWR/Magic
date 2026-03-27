@@ -18,11 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "CH340_interface.h"
-#include "MPU6050_interface.h"
-#include "GPIO_functions.h"
-#include "stm32f411xe.h"
-#include "stm32f4xx_hal_gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -102,40 +97,92 @@ int main(void)
   MX_I2C1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+  struct UART_DATA uart_data = {
+    .Accel_X = 0.0f,
+    .Accel_Y = 0.0f,
+    .Accel_Z = 0.0f,
+    .Gyro_X = 0.0f,
+    .Gyro_Y = 0.0f,
+    .Gyro_Z = 0.0f,
+    .mode = MODE_1, // Domyślny tryb
+    .recording = NOT_RECORDING // Domyślnie nie nagrywamy
+  };
 
+  char test[] = "Test połączenia!\r\n";
+  HAL_UART_Transmit(&huart1, (uint8_t*)test, strlen(test), 100);
+  HAL_Delay(1000);
+
+
+  char msg[64];
+  HAL_StatusTypeDef result;
+  uint8_t i;
+  uint8_t found_devices = 0;
+
+  for (i = 1; i < 128; i++) {
+      /* * HAL_I2C_IsDeviceReady sprawdza, czy urządzenie o danym adresie odpowie sygnałem ACK.
+      * Adres przesyłamy przesunięty o 1 bit w lewo (standard HAL).
+      */
+      result = HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t)(i << 1), 3, 5);
+      
+      if (result == HAL_OK) {
+          int len = sprintf(msg, "Znaleziono urzadzenie pod adresem: 0x%02X (HAL: 0x%02X)\r\n", i, (i << 1));
+          HAL_UART_Transmit(&huart1, (uint8_t*)msg, len, 100);
+          found_devices++;
+      }
+  }
+
+  if (found_devices == 0) {
+      char no_dev[] = "Nie znaleziono zadnych urzadzen I2C!\r\n";
+      HAL_UART_Transmit(&huart1, (uint8_t*)no_dev, strlen(no_dev), 100);
+  } else {
+      char done[] = "Skanowanie zakonczone.\r\n";
+      HAL_UART_Transmit(&huart1, (uint8_t*)done, strlen(done), 100);
+  }
+
+  MPU6050_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1) {
-    // 1. Odczytaj aktualny stan przycisku
-    GPIO_PinState current_button_state = HAL_GPIO_ReadPin(start_recording_GPIO_Port, start_recording_Pin);
-    GPIO_PinState last_button_state = GPIO_PIN_RESET; // Początkowo zakładamy, że przycisk nie jest wciśnięty
-    static uint8_t system_active = 0; // Flaga, która mówi, czy proces jest aktywny
-    // 2. DETEKCJA ZBOCZA NARASTAJĄCEGO (0 -> 1)
-    if (current_button_state == GPIO_PIN_SET && last_button_state == GPIO_PIN_RESET) {
-        system_active = 1; // Startujemy proces
-        uart_data.recording = RECORDING;
-        // Opcjonalnie: HAL_Delay(50); // Prosty debouncing
-    }
+  while (1)
+  {
+    GPIO_PinState current_btn = HAL_GPIO_ReadPin(start_recording_GPIO_Port, start_recording_Pin);
+    static GPIO_PinState last_btn = GPIO_PIN_RESET;
+    static uint8_t system_active = 0;
 
-    // 3. DETEKCJA ZBOCZA OPADAJĄCEGO (1 -> 0)
-    if (current_button_state == GPIO_PIN_RESET && last_button_state == GPIO_PIN_SET) {
-        system_active = 0; // Zatrzymujemy proces
-        uart_data.recording = NOT_RECORDING;
-        // Opcjonalnie: HAL_Delay(50); // Prosty debouncing
+    // Zbocze narastające (Wciśnięcie)
+    if (current_btn == GPIO_PIN_SET && last_btn == GPIO_PIN_RESET) {
+        system_active = 1;
+        uart_data.recording = 1;
+        //HAL_UART_Transmit(&huart1, (uint8_t*)"START\r\n", 7, 100);
     }
+    // Zbocze opadające (Puszczenie)
+    if (current_btn == GPIO_PIN_RESET && last_btn == GPIO_PIN_SET) {
+        system_active = 0;
+        uart_data.recording = 0;
+        //HAL_UART_Transmit(&huart1, (uint8_t*)"STOP\r\n", 6, 100);
+    }
+    last_btn = current_btn;
 
-    // 4. WYKONANIE PROCESU (tylko jeśli system_active == 1)
+    // --- GŁÓWNA LOGIKA (TYLKO GDY AKTYWNE) ---
     if (system_active) {
+        // 1. Ustaw tryb na podstawie 3 przycisków
         Mode_setting(&uart_data);
+
+        // 2. Odczytaj dane z MPU (z mechanizmem sprawdzania zamrożenia)
         MPU6050_Read_All(&mpu6050_data);
+
+        // 3. Konwertuj dane MPU do struktury UART
         convert_mpu_data_to_uart(&mpu6050_data, &uart_data);
+
+        // 4. Wyślij wszystko przez UART (pamiętaj o flagach float w linkerze!)
         send_data_over_uart(&uart_data);
     }
 
-    // 5. ZAPAMIĘTANIE STANU na następny obieg pętli
-    last_button_state = current_button_state;
+    HAL_Delay(10); // Częstotliwość pętli ok. 20Hz
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
@@ -231,7 +278,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
+  huart1.Init.BaudRate = 9600;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
