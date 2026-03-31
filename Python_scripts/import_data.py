@@ -1,86 +1,126 @@
 import serial
-import struct
 import os
 import csv
 from datetime import datetime
 
-# --- KONFIGURACJA DOPASOWANA DO NOWEGO KODU C ---
-SERIAL_PORT = 'COM3' 
-BAUD_RATE = 115200
-# Rozmiar: 6*4b (floats) + 4b (uint32 timestamp) + 1b (mode) + 1b (recording) = 30 bajtów
-DATA_SIZE = 30  
+SERIAL_PORT = 'COM5'
+BAUD_RATE = 9600
 BASE_DIR = "D:\\Pulpit\\STM\\Magic\\Magic\\Python_scripts\\raw_data"
 
 def get_csv_filename():
-    """Generuje nazwę pliku sesji."""
     return datetime.now().strftime("sesja_%H_%M_%S.csv")
 
+def parse_line(line):
+    """
+    Parsuje dokładnie:
+    A:-58,3,90 | G:-303,357,-165 | M:0 | R:1 | T:5120
+    """
+    try:
+        parts = [p.strip() for p in line.split('|')]
+
+        # A:...
+        acc = parts[0].split(':')[1].split(',')
+        ax, ay, az = [int(x)/100.0 for x in acc]
+
+        # G:...
+        gyro = parts[1].split(':')[1].split(',')
+        gx, gy, gz = [int(x)/100.0 for x in gyro]
+
+        # M:...
+        mode = int(parts[2].split(':')[1])
+
+        # R:...
+        recording = int(parts[3].split(':')[1])
+
+        # T:...
+        timestamp = int(parts[4].split(':')[1])
+
+        return ax, ay, az, gx, gy, gz, mode, recording, timestamp
+
+    except Exception:
+        return None
+
+
 def parse_uart_data():
-    if not os.path.exists(BASE_DIR):
-        os.makedirs(BASE_DIR, exist_ok=True)
+    os.makedirs(BASE_DIR, exist_ok=True)
 
     current_file = None
     csv_writer = None
     is_recording = False
-    mcu_start_time = 0  # Tu zapiszemy czas z STM32 w momencie kliknięcia przycisku
+    mcu_start_time = None
+    current_mode = 0
 
     try:
         with serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1) as ser:
-            print(f"Nasłuchiwanie na {SERIAL_PORT} (Paczka: {DATA_SIZE} bajtów)...")
+            print(f"Nasłuchiwanie na {SERIAL_PORT}...")
 
             while True:
-                raw_data = ser.read(DATA_SIZE)
-                
-                if len(raw_data) == DATA_SIZE:
-                    # ROZPAKOWANIE ZGODNE Z TWOJĄ FUNKCJĄ C:
-                    # < (little-endian)
-                    # ffffff (6 floatów: Acc X,Y,Z, Gyro X,Y,Z)
-                    # L (unsigned long / uint32: timestamp)
-                    # B (unsigned char / uint8: mode)
-                    # B (unsigned char / uint8: recording)
-                    unpacked = struct.unpack('<ffffffLBB', raw_data)
-                    
-                    ax, ay, az = unpacked[0:3]
-                    gx, gy, gz = unpacked[3:6]
-                    mcu_timestamp = unpacked[6]  # Czas w ms z HAL_GetTick()
-                    mode = unpacked[7]
-                    recording_signal = unpacked[8]
+                line = ser.readline().decode(errors='ignore').strip()
 
-                    # LOGIKA NAGRYWANIA
-                    if recording_signal == 1:
-                        if not is_recording:
-                            # START SESJI
-                            is_recording = True
-                            mcu_start_time = mcu_timestamp  # Zapamiętujemy moment startu
-                            
-                            mode_dir = os.path.join(BASE_DIR, f"mode_{mode}")
-                            os.makedirs(mode_dir, exist_ok=True)
-                            
-                            file_path = os.path.join(mode_dir, get_csv_filename())
-                            current_file = open(file_path, 'w', newline='')
-                            csv_writer = csv.writer(current_file)
-                            
-                            # Nagłówki kolumn
-                            csv_writer.writerow(['MCU_Time_ms', 'Relative_Time_ms', 'AX', 'AY', 'AZ', 'GX', 'GY', 'GZ'])
-                            print(f"\n[RECORDING START] Mode: {mode} -> {file_path}")
+                if not line:
+                    continue
 
-                        # Obliczamy czas od początku gestu (bardzo ważne dla AI)
-                        relative_time = mcu_timestamp - mcu_start_time
-                        
-                        # Zapis danych
-                        csv_writer.writerow([mcu_timestamp, relative_time, ax, ay, az, gx, gy, gz])
-                    
-                    else:
-                        # KONIEC SESJI
-                        if is_recording:
-                            is_recording = False
-                            if current_file:
-                                current_file.close()
-                                current_file = None
-                            print(f"\n[RECORDING STOP] Plik zapisany.")
+                # ========================
+                # ====== START ===========
+                # ========================
+                if line == "START":
+                    if not is_recording:
+                        is_recording = True
+                        mcu_start_time = None
 
-                    # Podgląd na żywo w konsoli (odświeżana linia)
-                    print(f"Time: {mcu_timestamp:8}ms | Mode: {mode} | Rec: {recording_signal} | AccX: {ax:>6.2f}", end='\r')
+                        mode_dir = os.path.join(BASE_DIR, f"mode_{current_mode}")
+                        os.makedirs(mode_dir, exist_ok=True)
+
+                        file_path = os.path.join(mode_dir, get_csv_filename())
+                        current_file = open(file_path, 'w', newline='')
+                        csv_writer = csv.writer(current_file)
+
+                        csv_writer.writerow([
+                            'MCU_Time_ms',
+                            'Relative_Time_ms',
+                            'AX', 'AY', 'AZ',
+                            'GX', 'GY', 'GZ'
+                        ])
+
+                        print(f"\n[START] Nagrywanie -> {file_path}")
+                    continue
+
+                # ========================
+                # ====== STOP ============
+                # ========================
+                if line == "STOP":
+                    if is_recording:
+                        is_recording = False
+                        if current_file:
+                            current_file.close()
+                            current_file = None
+                        print(f"\n[STOP] Plik zapisany.")
+                    continue
+
+                # ========================
+                # ====== DANE ============
+                # ========================
+                parsed = parse_line(line)
+                if not parsed:
+                    continue
+
+                ax, ay, az, gx, gy, gz, mode, rec, timestamp = parsed
+                current_mode = mode  # zapamiętujemy tryb
+
+                # ustawienie czasu startowego (pierwsza próbka)
+                if is_recording and mcu_start_time is None:
+                    mcu_start_time = timestamp
+
+                if is_recording and csv_writer:
+                    rel_time = timestamp - mcu_start_time
+                    csv_writer.writerow([
+                        timestamp, rel_time,
+                        ax, ay, az,
+                        gx, gy, gz
+                    ])
+
+                # live podgląd
+                print(f"T:{timestamp:6} | M:{mode} | AX:{ax:6.2f}", end='\r')
 
     except serial.SerialException as e:
         print(f"\nBłąd portu: {e}")
@@ -89,6 +129,7 @@ def parse_uart_data():
     finally:
         if current_file:
             current_file.close()
+
 
 if __name__ == "__main__":
     parse_uart_data()
