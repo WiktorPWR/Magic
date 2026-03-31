@@ -154,32 +154,31 @@ int main(void)
     if (current_btn == GPIO_PIN_SET && last_btn == GPIO_PIN_RESET) {
         system_active = 1;
         uart_data.recording = 1;
-        //HAL_UART_Transmit(&huart1, (uint8_t*)"START\r\n", 7, 100);
+
+        const char *msg = "START\r\n";
+        HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), 100);
     }
+
     // Zbocze opadające (Puszczenie)
     if (current_btn == GPIO_PIN_RESET && last_btn == GPIO_PIN_SET) {
         system_active = 0;
         uart_data.recording = 0;
-        //HAL_UART_Transmit(&huart1, (uint8_t*)"STOP\r\n", 6, 100);
+
+        const char *msg = "STOP\r\n";
+        HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), 100);
     }
+
     last_btn = current_btn;
 
-    // --- GŁÓWNA LOGIKA (TYLKO GDY AKTYWNE) ---
+    // --- GŁÓWNA LOGIKA ---
     if (system_active) {
-        // 1. Ustaw tryb na podstawie 3 przycisków
         Mode_setting(&uart_data);
-
-        // 2. Odczytaj dane z MPU (z mechanizmem sprawdzania zamrożenia)
         MPU6050_Read_All(&mpu6050_data);
-
-        // 3. Konwertuj dane MPU do struktury UART
         convert_mpu_data_to_uart(&mpu6050_data, &uart_data);
-
-        // 4. Wyślij wszystko przez UART (pamiętaj o flagach float w linkerze!)
         send_data_over_uart(&uart_data);
     }
 
-    HAL_Delay(10); // Częstotliwość pętli ok. 20Hz
+    HAL_Delay(10); // Opóźnienie 10ms (100Hz)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
