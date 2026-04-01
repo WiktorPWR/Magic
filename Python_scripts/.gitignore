@@ -1,0 +1,8 @@
+cleaned_data/
+raw_data/
+improved_data/
+augmented_data/
+notatki.txt
+model_gestow.tflite
+wykresy_sieci.png
+augmented_data.zip
