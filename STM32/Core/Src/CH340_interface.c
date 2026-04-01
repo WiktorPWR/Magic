@@ -20,10 +20,12 @@ void send_data_over_uart(struct UART_DATA* data) {
     int gz = (int)(data->Gyro_Z * 100);
 
     // Składamy tekst do wysłania (używamy %d dla int)
-    int len = sprintf(text_buffer, "A:%d,%d,%d | G:%d,%d,%d | M:%u | R:%u\r\n",
-                     ax, ay, az, gx, gy, gz, 
-                     (unsigned int)data->mode, 
-                     (unsigned int)data->recording);
+    int len = sprintf(text_buffer, "A:%d,%d,%d | G:%d,%d,%d | M:%u | R:%u | T:%lu\r\n",
+    ax, ay, az, gx, gy, gz,
+    (unsigned int)data->mode,
+    (unsigned int)data->recording,
+    (unsigned long)data->timestamp
+    );
 
     // Wysyłamy tekst przez UART
     HAL_UART_Transmit(&huart1, (uint8_t*)text_buffer, len, 100);
@@ -62,4 +64,5 @@ void convert_mpu_data_to_uart(struct MPU6050_Data* mpu_data, struct UART_DATA* u
     uart_data->Gyro_X = mpu_data->Gyro_X;
     uart_data->Gyro_Y = mpu_data->Gyro_Y;
     uart_data->Gyro_Z = mpu_data->Gyro_Z;
+    uart_data->timestamp = mpu_data->timestamp;
 }

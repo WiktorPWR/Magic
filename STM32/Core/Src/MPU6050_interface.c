@@ -116,6 +116,8 @@ void MPU6050_Read_All(struct MPU6050_Data* data) {
     // 1. Wykonaj swoje standardowe odczyty
     MPU6050_Read_Accel(data);
     MPU6050_Read_Gyro(data);
+    data->timestamp = HAL_GetTick(); // Dodaj timestamp do danych
+
 
     // 2. Porównaj KAŻDĄ wartość z poprzednią (wszystkie 6 osi)
     if (data->Accel_X == last_known_data.Accel_X && 
