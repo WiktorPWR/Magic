@@ -7,64 +7,135 @@ import glob
 INPUT_DIR = "D:\\Pulpit\\STM\\Magic\\Magic\\Python_scripts\\raw_data"
 OUTPUT_DIR = "D:\\Pulpit\\STM\\Magic\\Magic\\Python_scripts\\cleaned_data"
 
-def clean_and_interpolate_data():
-    # 1. Pobranie listy wszystkich plików CSV w strukturze folderów
-    all_files = glob.glob(os.path.join(INPUT_DIR, "mode_*", "*.csv"))
-    
-    if not all_files:
-        print("Nie znaleziono żadnych plików CSV!")
-        return
+MIN_SAMPLES = 10  # filtr śmieci
 
-    print(f"Znaleziono {len(all_files)} plików do przetworzenia.")
+# 🔥 MAPOWANIE folderów
+MODE_TO_LABEL = {
+    "mode_0": "L",
+    "mode_1": "kolo",
+    "mode_2": "krzyz"
+}
 
-    # 2. Wyznaczenie wzorcowego interwału (Delta T) na podstawie pierwszego pliku
-    first_df = pd.read_csv(all_files[0])
-    # Obliczamy różnice między kolejnymi wierszami w kolumnie Relative_Time_ms
-    time_diffs = first_df['Relative_Time_ms'].diff().dropna()
-    target_dt = time_diffs.mean()
-    
-    print(f"Wyznaczony wzorcowy interwał (target_dt): {target_dt:.2f} ms")
-    print("-" * 50)
+
+def compute_global_dt(all_files):
+    all_diffs = []
 
     for file_path in all_files:
-        # Pobranie nazwy folderu (mode_X) i nazwy pliku
-        relative_path = os.path.relpath(file_path, INPUT_DIR)
-        target_file_path = os.path.join(OUTPUT_DIR, relative_path)
-        
-        # Tworzenie folderu docelowego, jeśli nie istnieje
-        os.makedirs(os.path.dirname(target_file_path), exist_ok=True)
-
-        # 3. Wczytanie danych
         df = pd.read_csv(file_path)
-        
-        # Usuwamy ewentualne duplikaty w czasie (jeśli MCU wysłał dwie próbki z tym samym ms)
+
+        df = df.sort_values(by='Relative_Time_ms')
         df = df.drop_duplicates(subset=['Relative_Time_ms'])
 
-        # Pobieramy surowe dane czasowe i wartości sensorów
+        if len(df) < MIN_SAMPLES:
+            continue
+
+        time_vals = df['Relative_Time_ms'].values
+        diffs = np.diff(time_vals)
+
+        if len(diffs) == 0:
+            continue
+
+        local_median = np.median(diffs)
+
+        # usuwamy outliery (np. dropy pakietów)
+        diffs = diffs[(diffs > 0) & (diffs < 3 * local_median)]
+
+        all_diffs.extend(diffs)
+
+    if not all_diffs:
+        raise ValueError("Brak danych do wyliczenia dt!")
+
+    return np.median(all_diffs)
+
+
+def process_files():
+    all_files = glob.glob(os.path.join(INPUT_DIR, "mode_*", "*.csv"))
+
+    if not all_files:
+        print("Brak plików!")
+        return
+
+    print(f"Znaleziono {len(all_files)} plików")
+
+    # 🔥 GLOBALNY dt
+    target_dt = compute_global_dt(all_files)
+
+    print(f"🔥 GLOBALNY dt: {target_dt:.3f} ms")
+    print("-" * 50)
+
+    columns = ['AX', 'AY', 'AZ', 'GX', 'GY', 'GZ']
+
+    processed = 0
+    skipped = 0
+
+    for file_path in all_files:
+
+        # 🔥 wyciągamy folder mode_X
+        mode_folder = os.path.basename(os.path.dirname(file_path))
+
+        # 🔥 mapowanie na label
+        target_label = MODE_TO_LABEL.get(mode_folder)
+
+        if target_label is None:
+            print(f"❌ Nieznany folder: {mode_folder}")
+            skipped += 1
+            continue
+
+        # 🔥 nazwa pliku (z prefixem żeby uniknąć kolizji)
+        file_name = f"{mode_folder}_{os.path.basename(file_path)}"
+
+        # 🔥 katalog docelowy
+        target_dir = os.path.join(OUTPUT_DIR, target_label)
+        os.makedirs(target_dir, exist_ok=True)
+
+        target_file_path = os.path.join(target_dir, file_name)
+
+        # --- wczytanie ---
+        df = pd.read_csv(file_path)
+
+        df = df.sort_values(by='Relative_Time_ms')
+        df = df.drop_duplicates(subset=['Relative_Time_ms'])
+
+        if len(df) < MIN_SAMPLES:
+            print(f"❌ SKIP (za mało próbek): {file_path}")
+            skipped += 1
+            continue
+
         old_time = df['Relative_Time_ms'].values
-        columns_to_interpolate = ['AX', 'AY', 'AZ', 'GX', 'GY', 'GZ']
-        
-        # 4. Tworzenie nowej "idealnej" siatki czasu
-        # Startujemy od 0, kończymy na ostatniej zarejestrowanej próbce, skok co target_dt
-        new_time = np.arange(old_time[0], old_time[-1], target_dt)
 
-        # Tworzymy nowy DataFrame dla przeliczonych danych
-        new_df = pd.DataFrame({'Relative_Time_ms': new_time})
+        # 🔥 liczba próbek po interpolacji
+        num_samples = int(np.floor((old_time[-1] - old_time[0]) / target_dt))
 
-        # 5. Interpolacja dla każdej osi z osobna
-        for col in columns_to_interpolate:
-            # np.interp(nowe_punkty, stare_punkty, stare_wartosci)
+        if num_samples < MIN_SAMPLES:
+            print(f"❌ SKIP (za krótki sygnał): {file_path}")
+            skipped += 1
+            continue
+
+        # 🔥 nowa siatka czasu
+        new_time = old_time[0] + np.arange(num_samples) * target_dt
+
+        new_df = pd.DataFrame()
+
+        # 🔥 nowy, równy czas (ms)
+        new_df['Time_ms'] = new_time - new_time[0]
+
+        # interpolacja
+        for col in columns:
             new_df[col] = np.interp(new_time, old_time, df[col].values)
 
-        # Zaokrąglamy wartości dla czystości zapisu (np. do 4 miejsc po przecinku)
         new_df = new_df.round(4)
 
-        # 6. Zapis do nowego pliku
+        # zapis
         new_df.to_csv(target_file_path, index=False)
-        print(f"Przetworzono: {relative_path} | Próbek: {len(old_time)} -> {len(new_time)}")
+
+        processed += 1
+        print(f"✅ {file_name} → {num_samples} próbek")
 
     print("-" * 50)
-    print(f"PROCES ZAKOŃCZONY. Dane zapisane w: {OUTPUT_DIR}")
+    print(f"✔ Przetworzono: {processed}")
+    print(f"❌ Pominięto: {skipped}")
+    print("🎯 GOTOWE")
+
 
 if __name__ == "__main__":
-    clean_and_interpolate_data()
+    process_files()
