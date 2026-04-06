@@ -10,6 +10,9 @@ set(MX_Defines_Syms
 
 # STM32CubeMX generated include paths
 set(MX_Include_Dirs
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/Target
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Middlewares/ST/AI/Inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App
@@ -26,9 +29,23 @@ set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/stm32f4xx_hal_msp.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/sysmem.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/syscalls.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/gesty.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/gesty_data.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/gesty_data_params.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/network.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/network_data.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/network_data_params.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/aiPbIO.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/aiPbMemRWServices.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/aiPbMgr.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/aiValidation.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/pb_common.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/pb_decode.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/pb_encode.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/stm32msg.pb.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/aiTestHelper.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/aiTestUtility.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/ai_device_adaptor.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/lc_print.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/syscalls.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/app_x-cube-ai.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../startup_stm32f411xe.s
 )
 
