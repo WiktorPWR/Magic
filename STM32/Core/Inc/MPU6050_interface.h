@@ -1,7 +1,7 @@
 #ifndef MPU6050_INTERFACE_H
 #define MPU6050_INTERFACE_H
 
-#include "stm32f4xx_hal_def.h"
+#include "main.h"
 #include <stdint.h>
 
 #define MPU6050_ADDR (0x68 << 1) // I2C address of MPU6050 (shifted for HAL library)

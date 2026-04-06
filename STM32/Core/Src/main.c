@@ -23,7 +23,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "MPU6050_interface.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -102,7 +102,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
  
   MPU6050_Init();
-
+  char uart_buf[100];
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -110,7 +110,7 @@ int main(void)
   while (1)
   {
     // 1. Zbieranie 50 próbek z MPU6050 (trwa ok. 1 sekundy)
-    if (MPU6050_Read_And_Set_ML_Input(&myMPUData) == HAL_OK) 
+    if (MPU6050_Read_And_Set_ML_Input(&mpu6050_data) == HAL_OK) 
     {
         // 2. Kopiowanie danych do bufora wejściowego sieci (data_ins[0])
         memcpy(data_ins[0], ML_Input, sizeof(ML_Input));

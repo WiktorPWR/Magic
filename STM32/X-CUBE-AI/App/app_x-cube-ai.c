@@ -58,7 +58,7 @@ ai_handle data_activations0[] = {pool0};
 
 void MX_X_CUBE_AI_Init(void)
 {
-    MX_UARTx_Init();
+    //MX_UARTx_Init();
     aiValidationInit();
     /* USER CODE BEGIN 5 */
     /* USER CODE END 5 */
