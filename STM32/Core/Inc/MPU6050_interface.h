@@ -48,7 +48,9 @@ HAL_StatusTypeDef MPU6050_Read_Gyro(struct MPU6050_Data* data);
 
 HAL_StatusTypeDef MPU6050_Read_All(struct MPU6050_Data* data);
 
+extern float ML_Input[50][6];
 
+HAL_StatusTypeDef MPU6050_Read_And_Set_ML_Input(struct MPU6050_Data* data);
 
 
 

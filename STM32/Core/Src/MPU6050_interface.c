@@ -133,3 +133,28 @@ HAL_StatusTypeDef MPU6050_Read_All(struct MPU6050_Data* data) {
     last_known_data = *data;
     return HAL_OK;
 }
+
+
+float ML_Input[50][6] = {0};
+
+HAL_StatusTypeDef MPU6050_Read_And_Set_ML_Input(struct MPU6050_Data* data) {
+    for(int i = 0; i < 50; i++) {
+        uint32_t tickstart = HAL_GetTick(); // Zapamiętaj czas rozpoczęcia
+
+        if (MPU6050_Read_All(data) == HAL_OK) {
+            ML_Input[i][0] = data->Accel_X;
+            ML_Input[i][1] = data->Accel_Y;
+            ML_Input[i][2] = data->Accel_Z;
+            ML_Input[i][3] = data->Gyro_X;
+            ML_Input[i][4] = data->Gyro_Y;
+            ML_Input[i][5] = data->Gyro_Z;
+        } else {
+            return HAL_ERROR;
+        }
+
+        // Czekaj, aby zachować 20ms odstępu (50Hz)
+        // To ważne, żeby gest trwał tyle samo co podczas zbierania danych do treningu!
+        HAL_Delay(20); 
+    }
+    return HAL_OK;
+}

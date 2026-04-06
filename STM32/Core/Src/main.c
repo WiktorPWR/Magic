@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "ai_platform.h"
 #include "app_x-cube-ai.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -99,88 +100,51 @@ int main(void)
   MX_USART1_UART_Init();
   MX_X_CUBE_AI_Init();
   /* USER CODE BEGIN 2 */
-  struct UART_DATA uart_data = {
-    .Accel_X = 0.0f,
-    .Accel_Y = 0.0f,
-    .Accel_Z = 0.0f,
-    .Gyro_X = 0.0f,
-    .Gyro_Y = 0.0f,
-    .Gyro_Z = 0.0f,
-    .mode = MODE_1, // Domyślny tryb
-    .recording = NOT_RECORDING // Domyślnie nie nagrywamy
-  };
-
-  char test[] = "Test połączenia!\r\n";
-  HAL_UART_Transmit(&huart1, (uint8_t*)test, strlen(test), 100);
-  HAL_Delay(1000);
-
-
-  char msg[64];
-  HAL_StatusTypeDef result;
-  uint8_t i;
-  uint8_t found_devices = 0;
-
-  for (i = 1; i < 128; i++) {
-      /* * HAL_I2C_IsDeviceReady sprawdza, czy urządzenie o danym adresie odpowie sygnałem ACK.
-      * Adres przesyłamy przesunięty o 1 bit w lewo (standard HAL).
-      */
-      result = HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t)(i << 1), 3, 5);
-      
-      if (result == HAL_OK) {
-          int len = sprintf(msg, "Znaleziono urzadzenie pod adresem: 0x%02X (HAL: 0x%02X)\r\n", i, (i << 1));
-          HAL_UART_Transmit(&huart1, (uint8_t*)msg, len, 100);
-          found_devices++;
-      }
-  }
-
-  if (found_devices == 0) {
-      char no_dev[] = "Nie znaleziono zadnych urzadzen I2C!\r\n";
-      HAL_UART_Transmit(&huart1, (uint8_t*)no_dev, strlen(no_dev), 100);
-  } else {
-      char done[] = "Skanowanie zakonczone.\r\n";
-      HAL_UART_Transmit(&huart1, (uint8_t*)done, strlen(done), 100);
-  }
-
+ 
   MPU6050_Init();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    GPIO_PinState current_btn = HAL_GPIO_ReadPin(start_recording_GPIO_Port, start_recording_Pin);
-    static GPIO_PinState last_btn = GPIO_PIN_RESET;
-    static uint8_t system_active = 0;
+    // 1. Zbieranie 50 próbek z MPU6050 (trwa ok. 1 sekundy)
+    if (MPU6050_Read_And_Set_ML_Input(&myMPUData) == HAL_OK) 
+    {
+        // 2. Kopiowanie danych do bufora wejściowego sieci (data_ins[0])
+        memcpy(data_ins[0], ML_Input, sizeof(ML_Input));
 
-    // Zbocze narastające (Wciśnięcie)
-    if (current_btn == GPIO_PIN_SET && last_btn == GPIO_PIN_RESET) {
-        system_active = 1;
-        uart_data.recording = 1;
+        // 3. Uruchomienie obliczeń sieci neuronowej
+        MX_X_CUBE_AI_Process();
 
-        const char *msg = "START\r\n";
-        HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), 100);
+        // 4. Wyniki są w data_outs[0] (rzutujemy na float*)
+        float* results = (float*)data_outs[0];
+
+        // 5. Wysłanie wyników przez UART (CH340)
+        // Format: G0: 0.01, G1: 0.98, G2: 0.01
+        int len = sprintf(uart_buf, "G0: %.2f | G1: %.2f | G2: %.2f\r\n", 
+                          results[0], results[1], results[2]);
+        HAL_UART_Transmit(&huart1, (uint8_t*)uart_buf, len, 100);
+
+        // 6. Prosta logika sterowania na podstawie najwyższego prawdopodobieństwa
+        if (results[0] > 0.8f) {
+            HAL_UART_Transmit(&huart1, (uint8_t*)"WYKRYTO GEST 0\r\n", 16, 100);
+        } 
+        else if (results[1] > 0.8f) {
+            HAL_UART_Transmit(&huart1, (uint8_t*)"WYKRYTO GEST 1\r\n", 16, 100);
+        }
+        else if (results[2] > 0.8f) {
+            HAL_UART_Transmit(&huart1, (uint8_t*)"WYKRYTO GEST 2\r\n", 16, 100);
+        }
+    }
+    else {
+        HAL_UART_Transmit(&huart1, (uint8_t*)"Blad MPU6050!\r\n", 15, 100);
     }
 
-    // Zbocze opadające (Puszczenie)
-    if (current_btn == GPIO_PIN_RESET && last_btn == GPIO_PIN_SET) {
-        system_active = 0;
-        uart_data.recording = 0;
+    // Krótka przerwa przed kolejnym cyklem zbierania danych
+    HAL_Delay(50);
 
-        const char *msg = "STOP\r\n";
-        HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), 100);
-    }
-
-    last_btn = current_btn;
-
-    // --- GŁÓWNA LOGIKA ---
-    if (system_active) {
-        Mode_setting(&uart_data);
-        MPU6050_Read_All(&mpu6050_data);
-        convert_mpu_data_to_uart(&mpu6050_data, &uart_data);
-        send_data_over_uart(&uart_data);
-    }
-
-    HAL_Delay(10); // Opóźnienie 10ms (100Hz)
     /* USER CODE END WHILE */
 
   MX_X_CUBE_AI_Process();
