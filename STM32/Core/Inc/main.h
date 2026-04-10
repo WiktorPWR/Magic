@@ -38,6 +38,7 @@ extern "C" {
 #include <stdlib.h>
 #include <stdbool.h>
 
+
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/

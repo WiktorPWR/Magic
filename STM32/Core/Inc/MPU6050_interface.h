@@ -52,7 +52,8 @@ extern float ML_Input[50][6];
 
 HAL_StatusTypeDef MPU6050_Read_And_Set_ML_Input(struct MPU6050_Data* data);
 
+void I2C_Reset(void);
 
-
+void I2C_Scan(void);
 
 #endif /* MPU6050_INTERFACE_H */

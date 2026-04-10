@@ -592,45 +592,46 @@
     }
   ],
   "environment": {
+    "device": "AMD64, Intel64 Family 6 Model 158 Stepping 9, GenuineIntel, Windows",
     "generated_model": {
-      "generated_time": "2026-04-06T20:22:20+0200",
+      "generated_time": "2026-04-10T20:04:43+0200",
       "model_files": [
         {
           "name": "network_data_params.h",
-          "signature": "0x79a9799971e2b86be0a9a57dc7f1aeaf"
+          "signature": "0xb0f1b720f11b4e735fe28c031a810fa4"
         },
         {
           "name": "network_data_params.c",
-          "signature": "0xce6b555d7e059feadcaf8c63cb6160ed"
+          "signature": "0x33f144a2bba863b5e8c742e83037bb26"
         },
         {
           "name": "network_data.h",
-          "signature": "0xdeb7d67d18ea1f9ffa7eed4b8a8eec1b"
+          "signature": "0x169b41d7131752963d839700878b09e6"
         },
         {
           "name": "network_data.c",
-          "signature": "0x520b892b8f72f9f7f1129391e0adda58"
+          "signature": "0xc5ae0ff50e44bce6793ca4b230bfe3cf"
         },
         {
           "name": "network_config.h",
-          "signature": "0xc700769d604b9165b76ef37f0c150ac3"
+          "signature": "0x75ec8abe01bc57fc958d2a083984360b"
         },
         {
           "name": "network.h",
-          "signature": "0x22bed0497bfda2f66182ae9c675aff4c"
+          "signature": "0x12605d67cf7a392a29145596995b61a6"
         },
         {
           "name": "network.c",
-          "signature": "0x1e6e814fbf9e4dbe38735a21acc976fa"
+          "signature": "0x10ea08460f8d09ec7e6b5b660fe0d2d9"
         }
       ],
       "name": "network"
     },
-    "network_signature": "0x72ee29d64ce0458e",
+    "network_signature": "0xc961e5eae5efde36",
     "test_name": "",
     "tools": [
       {
-        "arguments": "generate --target stm32f4 --name network -m D:/Pobrane/model_gestow.tflite --compression none --verbosity 1 --workspace C:/Users/ostro/AppData/Local/Temp/mxAI_workspace18134298957250011794036962809357579 --output C:/Users/ostro/.stm32cubemx/network_output",
+        "arguments": "validate --target stm32f4 --name network -m D:/Pobrane/model_gestow.tflite --compression none --verbosity 1 --workspace C:/Users/ostro/AppData/Local/Temp/mxAI_workspace5259051498147002225398250647829513 --output C:/Users/ostro/.stm32cubemx/network_output",
         "environment": [
           "STATS_TYPE=X-CUBE-AI"
         ],
@@ -767,6 +768,13 @@
           }
         }
       ],
+      "exec_time": {
+        "counters": null,
+        "cycles": 0,
+        "cycles_by_macc": 0.0,
+        "duration_ms": 0.06762500223703682,
+        "percentage": 100.0
+      },
       "id": 0,
       "inputs": [
         145
@@ -787,6 +795,13 @@
             "weights_prefetch": "True"
           },
           "description": "Conv2D",
+          "exec_time": {
+            "counters": [],
+            "cycles": 0,
+            "cycles_by_macc": 0.0,
+            "duration_ms": 0.0010000000474974513,
+            "percentage": 1.4787430897115326
+          },
           "id": 11,
           "inputs": [
             145,
@@ -815,6 +830,7 @@
             "nonlinearity": "relu"
           },
           "description": "Nonlinearity",
+          "exec_time": {},
           "id": 12,
           "inputs": [
             147
@@ -843,6 +859,13 @@
             "pool_stride": "(1, 2)"
           },
           "description": "Pool",
+          "exec_time": {
+            "counters": [],
+            "cycles": 0,
+            "cycles_by_macc": 0.0,
+            "duration_ms": 0.0010000000474974513,
+            "percentage": 1.4787430897115326
+          },
           "id": 13,
           "inputs": [
             149
@@ -876,6 +899,13 @@
             "weights_prefetch": "True"
           },
           "description": "Conv2D",
+          "exec_time": {
+            "counters": [],
+            "cycles": 0,
+            "cycles_by_macc": 0.0,
+            "duration_ms": 0.00037500001781154424,
+            "percentage": 0.5545286586418248
+          },
           "id": 14,
           "inputs": [
             151,
@@ -904,6 +934,7 @@
             "nonlinearity": "relu"
           },
           "description": "Nonlinearity",
+          "exec_time": {},
           "id": 15,
           "inputs": [
             153
@@ -929,6 +960,13 @@
             "use_bias": "True"
           },
           "description": "Dense",
+          "exec_time": {
+            "counters": [],
+            "cycles": 0,
+            "cycles_by_macc": 0.0,
+            "duration_ms": 0.00037500001781154424,
+            "percentage": 0.5545286586418248
+          },
           "id": 16,
           "inputs": [
             155,
@@ -955,6 +993,7 @@
             "nonlinearity": "relu"
           },
           "description": "Nonlinearity",
+          "exec_time": {},
           "id": 17,
           "inputs": [
             157
@@ -980,6 +1019,13 @@
             "use_bias": "True"
           },
           "description": "Dense",
+          "exec_time": {
+            "counters": [],
+            "cycles": 0,
+            "cycles_by_macc": 0.0,
+            "duration_ms": 0.0002500000118743628,
+            "percentage": 0.36968577242788314
+          },
           "id": 18,
           "inputs": [
             159,
@@ -1008,6 +1054,13 @@
             "orig_axis": "-1"
           },
           "description": "Nonlinearity",
+          "exec_time": {
+            "counters": [],
+            "cycles": 0,
+            "cycles_by_macc": 0.0,
+            "duration_ms": 0.0010000000474974513,
+            "percentage": 1.4787430897115326
+          },
           "id": 19,
           "inputs": [
             161
@@ -1084,12 +1137,12 @@
       0,
       0
     ],
-    "kernel_flash": 13848,
-    "kernel_ram": 3096,
-    "series": "stm32f4",
-    "toolchain": "arm-none-eabi-gcc (GNU Tools for STM32 14.3.rel1.20251027-0700) 14.3.1 20250623",
-    "toolchain_flash": 736,
-    "toolchain_ram": 0,
+    "kernel_flash": null,
+    "kernel_ram": null,
+    "series": "generic",
+    "toolchain": null,
+    "toolchain_flash": null,
+    "toolchain_ram": null,
     "weights": 31436
   },
   "memory_pools": [
@@ -1127,7 +1180,7 @@
       "virtual": false
     },
     {
-      "address": "s_network_weights_array_u64",
+      "address": "NULL",
       "alignment": 0,
       "attributes": {
         "latency": "UNDEF",
@@ -1155,5 +1208,22 @@
       "user_allocated": false,
       "virtual": false
     }
-  ]
+  ],
+  "validation": {
+    "val_error": 7.495265208490309e-08,
+    "val_error_desc": "x-cross (l2r) #1",
+    "val_metrics": [
+      {
+        "acc": "100.00%",
+        "cos": 1.0,
+        "desc": "X-cross #1",
+        "l2r": 7.495265208490309e-08,
+        "mae": 2.1156544960376777e-08,
+        "mean": 7.745499353006835e-09,
+        "nse": 0.9999999999999913,
+        "rmse": 4.110367513021629e-08,
+        "std": 4.105739748183623e-08
+      }
+    ]
+  }
 }

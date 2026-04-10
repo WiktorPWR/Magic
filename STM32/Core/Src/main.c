@@ -4,26 +4,19 @@
   * @file           : main.c
   * @brief          : Main program body
   ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2026 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "ai_platform.h"
-#include "app_x-cube-ai.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "MPU6050_interface.h"
+#include "ai_platform.h"
+#include "network.h"      // Zmieniono na relatywną ścieżkę (zakładając poprawny Include Path w CMake)
+#include "network_data.h"
+#include <string.h>       // Dla memset i memcpy
+#include <stdio.h>        // Dla sprintf
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,7 +41,23 @@ DMA_HandleTypeDef hdma_i2c1_rx;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
+// Zmienne dla AI
+ai_handle network = AI_HANDLE_NULL;
+ai_buffer *ai_input;
+ai_buffer *ai_output;
+static ai_network_params params;
+/* * POPRAWKA 1: Wymuszenie wyrównania buforów do 32 bajtów (aligned(32)).
+ * Zapobiega to błędowi PRECISERR (BusFault) podczas dostępu silnika AI do danych.
+ */
 
+__attribute__((aligned(32))) static uint8_t pool0[11264];
+
+__attribute__((aligned(32))) static float data_ins[300]; 
+__attribute__((aligned(32))) static float data_outs[3];
+
+/* * POPRAWKA 2: Zwiększony bufor UART, aby sprintf nie wykroczył poza pamięć.
+ */
+char uart_buf[128]; 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -63,7 +72,44 @@ static void MX_USART1_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+/**
+ * POPRAWKA 3: Kompletna i bezpieczna funkcja inicjalizacji.
+ * Przekazuje uchwyt 'network' do funkcji pobierających bufory wag i aktywacji.
+ */
+void MX_X_CUBE_AI_Init(void) {
+    ai_error err;
 
+    // 1. Utworzenie instancji
+    err = ai_network_create(&network, AI_NETWORK_DATA_CONFIG);
+    if (err.type != AI_ERROR_NONE) {
+        HAL_UART_Transmit(&huart1, (uint8_t*)"CREATE ERR\r\n", 12, 100);
+        return;
+    }
+
+    // 2. Czyścimy całą strukturę params (w tym unię i obie struktury wewnątrz)
+    memset(&params, 0, sizeof(ai_network_params));
+
+    // 3. Konfiguracja wag (pobieramy domyślne z modelu)
+    params.params = ai_network_data_weights_buffer_get(AI_HANDLE_PTR(network));
+
+    // 4. RĘCZNA KONFIGURACJA AKTYWACJI (zgodnie z Twoją strukturą ai_buffer)
+    // Używamy AI_BUFFER_FORMAT_NONE lub 0, bo to surowy bufor pamięci dla silnika
+    params.activations.format    = 0; 
+    params.activations.data      = AI_HANDLE_PTR(pool0); // Twój bufor 11KB
+    params.activations.meta_info = NULL;
+    params.activations.flags     = 0;
+    params.activations.size      = 11264; // Liczba bajtów
+
+    // Opcjonalnie: kształt bufora (często wymagane, by nie był zerem)
+    // Jeśli Twoja struktura ma n_chunks, ustaw go na 1
+    //params.activations.shape.n_chunks = 1; 
+
+    // 5. Przekazanie wszystkiego do silnika
+    if (!ai_network_init(network, &params)) {
+        HAL_UART_Transmit(&huart1, (uint8_t*)"INIT FAIL\r\n", 11, 100);
+        while(1);
+    }
+}
 /* USER CODE END 0 */
 
 /**
@@ -98,56 +144,82 @@ int main(void)
   MX_DMA_Init();
   MX_I2C1_Init();
   MX_USART1_UART_Init();
-  MX_X_CUBE_AI_Init();
   /* USER CODE BEGIN 2 */
- 
   MPU6050_Init();
-  char uart_buf[100];
+  HAL_UART_Transmit(&huart1, (uint8_t*)"SYSTEM START\r\n", 14, 100);
+
+  I2C_Scan(); // Skanowanie I2C w poszukiwaniu urządzeń (dla debugowania)
+  // Inicjalizacja AI
+  MX_X_CUBE_AI_Init();
+
+  // Pobranie wskaźników do wejść i wyjść modelu
+  ai_input = ai_network_inputs_get(network, NULL);
+  ai_output = ai_network_outputs_get(network, NULL);
+
+  // SPRAWDZENIE: Czy wskaźniki są poprawne?
+  if ((ai_input == NULL) || (ai_output == NULL)) {
+      HAL_UART_Transmit(&huart1, (uint8_t*)"GET BUFFERS ERR\r\n", 17, 100);
+      while(1); 
+  }
+  // Powiązanie naszych fizycznych tablic z silnikiem AI
+  ai_input->data = AI_HANDLE_PTR(data_ins);
+  ai_output->data = AI_HANDLE_PTR(data_outs);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    // 1. Zbieranie 50 próbek z MPU6050 (trwa ok. 1 sekundy)
+    /* 1. Odczyt danych z sensora MPU6050. 
+       Funkcja ta powinna wypełnić tablicę ML_Input (50 próbek x 6 osi). */
     if (MPU6050_Read_And_Set_ML_Input(&mpu6050_data) == HAL_OK) 
     {
-        // 2. Kopiowanie danych do bufora wejściowego sieci (data_ins[0])
-        memcpy(data_ins[0], ML_Input, sizeof(ML_Input));
+        /* 2. Kopiowanie danych do bufora wejściowego sieci.
+           Używamy (float*) dla ML_Input, aby poprawnie skopiować 300 wartości float. */
+        memcpy(data_ins, ML_Input, 300 * sizeof(float));
 
-        // 3. Uruchomienie obliczeń sieci neuronowej
-        MX_X_CUBE_AI_Process();
-
-        // 4. Wyniki są w data_outs[0] (rzutujemy na float*)
-        float* results = (float*)data_outs[0];
-
-        // 5. Wysłanie wyników przez UART (CH340)
-        // Format: G0: 0.01, G1: 0.98, G2: 0.01
-        int len = sprintf(uart_buf, "G0: %.2f | G1: %.2f | G2: %.2f\r\n", 
-                          results[0], results[1], results[2]);
-        HAL_UART_Transmit(&huart1, (uint8_t*)uart_buf, len, 100);
-
-        // 6. Prosta logika sterowania na podstawie najwyższego prawdopodobieństwa
-        if (results[0] > 0.8f) {
-            HAL_UART_Transmit(&huart1, (uint8_t*)"WYKRYTO GEST 0\r\n", 16, 100);
-        } 
-        else if (results[1] > 0.8f) {
-            HAL_UART_Transmit(&huart1, (uint8_t*)"WYKRYTO GEST 1\r\n", 16, 100);
+        /* 3. Uruchomienie obliczeń sieci neuronowej.
+           Jeśli tu następuje HardFault, upewnij się, że stos (Stack) w CubeMX 
+           jest zwiększony do 0x2000. */
+        if (ai_network_run(network, &ai_input[0], &ai_output[0]) != 1) 
+        {
+            HAL_UART_Transmit(&huart1, (uint8_t*)"AI Run Error!\r\n", 15, 100);
         }
-        else if (results[2] > 0.8f) {
-            HAL_UART_Transmit(&huart1, (uint8_t*)"WYKRYTO GEST 2\r\n", 16, 100);
+        else 
+        {
+            // 4. Wyniki klasyfikacji znajdują się w data_outs.
+            // Mnożymy przez 100, aby uzyskać wartość procentową (np. 0.85 -> 85)
+            int p0 = (int)(data_outs[0] * 100);
+            int p1 = (int)(data_outs[1] * 100);
+            int p2 = (int)(data_outs[2] * 100);
+
+            // Używamy formatu %d zamiast %f
+            int len = sprintf(uart_buf, "G0: %d%% | G1: %d%% | G2: %d%%\r\n", p0, p1, p2);
+
+            HAL_UART_Transmit(&huart1, (uint8_t*)uart_buf, len, 100);
+
+            /* 5. Prosta logika sterowania - wybieramy gest z pewnością powyżej 80%. */
+            if (data_outs[0] > 0.8f) {
+                HAL_UART_Transmit(&huart1, (uint8_t*)"WYKRYTO: GEST 0\r\n", 17, 100);
+            } 
+            else if (data_outs[1] > 0.8f) {
+                HAL_UART_Transmit(&huart1, (uint8_t*)"WYKRYTO: GEST 1\r\n", 17, 100);
+            }
+            else if (data_outs[2] > 0.8f) {
+                HAL_UART_Transmit(&huart1, (uint8_t*)"WYKRYTO: GEST 2\r\n", 17, 100);
+            }
         }
     }
-    else {
-        HAL_UART_Transmit(&huart1, (uint8_t*)"Blad MPU6050!\r\n", 15, 100);
+    else 
+    {
+        /* Błąd odczytu z I2C / MPU6050 */
+        HAL_UART_Transmit(&huart1, (uint8_t*)"MPU6050 Error!\r\n", 16, 100);
     }
 
-    // Krótka przerwa przed kolejnym cyklem zbierania danych
+    /* Krótka przerwa, aby nie zapchać procesora i UARTA */
     HAL_Delay(50);
-
     /* USER CODE END WHILE */
 
-  MX_X_CUBE_AI_Process();
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */

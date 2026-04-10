@@ -19,6 +19,20 @@ void I2C_Reset(void){
     HAL_I2C_Init(&hi2c1);
 }
 
+void I2C_Scan(void) {
+    uint8_t found_device = 0;
+    for (uint16_t addr = 1; addr < 128; addr++) {
+        if (HAL_I2C_IsDeviceReady(&hi2c1, (addr << 1), 3, 100) == HAL_OK) {
+            char msg[30];
+            sprintf(msg, "Device found at: 0x%02X\r\n", addr);
+            HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), 100);
+            found_device = 1;
+        }
+    }
+    if(found_device == 0) {
+        HAL_UART_Transmit(&huart1, (uint8_t*)"No I2C devices found!\r\n", 24, 100);
+    }
+}
 
 HAL_StatusTypeDef MPU6050_Init(void){
     uint8_t check = 0;
@@ -82,13 +96,26 @@ HAL_StatusTypeDef MPU6050_Read_Accel(struct MPU6050_Data* data) {
 
 }
 
+// HAL_StatusTypeDef MPU6050_Read_Gyro(struct MPU6050_Data* data) {
+//     uint8_t buffer[6];
+//     // Zmieniamy na zwykły Read (blokujący) - dodajemy timeout 100ms
+//     if (HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, GYRO_XOUT_H_REG, I2C_MEMADD_SIZE_8BIT, buffer, 6, 100) == HAL_OK) {
+//         data->Gyro_X = (float)(int16_t)(buffer[0] << 8 | buffer[1]) / 131.0f; // Convert to dps
+//         data->Gyro_Y = (float)(int16_t)(buffer[2] << 8 | buffer[3]) / 131.0f; // Convert to dps
+//         data->Gyro_Z = (float)(int16_t)(buffer[4] << 8 | buffer[5]) / 131.0f; // Convert to dps
+//         return HAL_OK;
+//     } else {
+//         return HAL_ERROR;
+//     }
+// }
+
 HAL_StatusTypeDef MPU6050_Read_Gyro(struct MPU6050_Data* data) {
     uint8_t buffer[6];
     // Zmieniamy na zwykły Read (blokujący) - dodajemy timeout 100ms
     if (HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, GYRO_XOUT_H_REG, I2C_MEMADD_SIZE_8BIT, buffer, 6, 100) == HAL_OK) {
-        data->Gyro_X = (float)(int16_t)(buffer[0] << 8 | buffer[1]) / 131.0f; // Convert to dps
-        data->Gyro_Y = (float)(int16_t)(buffer[2] << 8 | buffer[3]) / 131.0f; // Convert to dps
-        data->Gyro_Z = (float)(int16_t)(buffer[4] << 8 | buffer[5]) / 131.0f; // Convert to dps
+        data->Gyro_X = (float)(int16_t)(buffer[0] << 8 | buffer[1]) / 100.0f; // Convert to dps
+        data->Gyro_Y = (float)(int16_t)(buffer[2] << 8 | buffer[3]) / 100.0f; // Convert to dps
+        data->Gyro_Z = (float)(int16_t)(buffer[4] << 8 | buffer[5]) / 100.0f; // Convert to dps
         return HAL_OK;
     } else {
         return HAL_ERROR;
@@ -139,8 +166,6 @@ float ML_Input[50][6] = {0};
 
 HAL_StatusTypeDef MPU6050_Read_And_Set_ML_Input(struct MPU6050_Data* data) {
     for(int i = 0; i < 50; i++) {
-        uint32_t tickstart = HAL_GetTick(); // Zapamiętaj czas rozpoczęcia
-
         if (MPU6050_Read_All(data) == HAL_OK) {
             ML_Input[i][0] = data->Accel_X;
             ML_Input[i][1] = data->Accel_Y;
@@ -154,7 +179,7 @@ HAL_StatusTypeDef MPU6050_Read_And_Set_ML_Input(struct MPU6050_Data* data) {
 
         // Czekaj, aby zachować 20ms odstępu (50Hz)
         // To ważne, żeby gest trwał tyle samo co podczas zbierania danych do treningu!
-        HAL_Delay(20); 
+        HAL_Delay(70); 
     }
     return HAL_OK;
 }
