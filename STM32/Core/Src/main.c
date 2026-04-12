@@ -53,7 +53,7 @@ static ai_network_params params;
 __attribute__((aligned(32))) static uint8_t pool0[11264];
 
 __attribute__((aligned(32))) static float data_ins[300]; 
-__attribute__((aligned(32))) static float data_outs[3];
+__attribute__((aligned(32))) static float data_outs[4];
 
 /* * POPRAWKA 2: Zwiększony bufor UART, aby sprintf nie wykroczył poza pamięć.
  */
@@ -192,9 +192,10 @@ int main(void)
             int p0 = (int)(data_outs[0] * 100);
             int p1 = (int)(data_outs[1] * 100);
             int p2 = (int)(data_outs[2] * 100);
+            int p3 = (int)(data_outs[3] * 100);
 
             // Używamy formatu %d zamiast %f
-            int len = sprintf(uart_buf, "G0: %d%% | G1: %d%% | G2: %d%%\r\n", p0, p1, p2);
+            int len = sprintf(uart_buf, "G0: %d%% | G1: %d%% | G2: %d%% | G3: %d%%\r\n", p0, p1, p2, p3);
 
             HAL_UART_Transmit(&huart1, (uint8_t*)uart_buf, len, 100);
 
@@ -207,6 +208,9 @@ int main(void)
             }
             else if (data_outs[2] > 0.8f) {
                 HAL_UART_Transmit(&huart1, (uint8_t*)"WYKRYTO: GEST 2\r\n", 17, 100);
+            }
+            else if (data_outs[3] > 0.8f) {
+                HAL_UART_Transmit(&huart1, (uint8_t*)"WYKRYTO: GEST 3\r\n", 17, 100);
             }
         }
     }
