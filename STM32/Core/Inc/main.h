@@ -31,13 +31,13 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "GPIO_functions.h"
 #include "MPU6050_interface.h"
-#include "CH340_interface.h"
+#include "stm32f4xx_hal.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+
 
 /* USER CODE END Includes */
 
