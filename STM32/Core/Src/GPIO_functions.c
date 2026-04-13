@@ -20,10 +20,11 @@ void Mode_setting(struct UART_DATA* data) {
             data->mode = MODE_3;
             break;
         case 0b000:
-            // Opcjonalnie: żaden nie wciśnięty
+            data->mode = MODE_4; // Żaden przycisk nie jest wciśnięty
             break;
         default:
             // Opcjonalnie: kombinacja wielu przycisków (np. 1 i 2 naraz)
             break;
     }
 }
+

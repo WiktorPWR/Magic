@@ -18,6 +18,9 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "MPU6050_interface.h"
+#include "stm32f4xx_hal_gpio.h"
+#include <stdint.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -36,7 +39,9 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define ONE_FULL_SYMBOL_TIME 2000 // Czas w ms między kolejnymi odczytami z MPU6050
+#define ONE_SAMPLE_TIME 20 // Czas w ms między kolejnymi odczytami z MPU6050 podczas nagrywania
+#define NUMBER_OF_SAMPLES ONE_FULL_SYMBOL_TIME / ONE_SAMPLE_TIME // Liczba próbek do zebrania podczas nagrywania
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -46,6 +51,8 @@ DMA_HandleTypeDef hdma_i2c1_rx;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
+
+
 
 /* USER CODE END PV */
 
@@ -112,73 +119,49 @@ int main(void)
   HAL_UART_Transmit(&huart1, (uint8_t*)test, strlen(test), 100);
   HAL_Delay(1000);
 
-
-  char msg[64];
-  HAL_StatusTypeDef result;
-  uint8_t i;
-  uint8_t found_devices = 0;
-
-  for (i = 1; i < 128; i++) {
-      /* * HAL_I2C_IsDeviceReady sprawdza, czy urządzenie o danym adresie odpowie sygnałem ACK.
-      * Adres przesyłamy przesunięty o 1 bit w lewo (standard HAL).
-      */
-      result = HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t)(i << 1), 3, 5);
-      
-      if (result == HAL_OK) {
-          int len = sprintf(msg, "Znaleziono urzadzenie pod adresem: 0x%02X (HAL: 0x%02X)\r\n", i, (i << 1));
-          HAL_UART_Transmit(&huart1, (uint8_t*)msg, len, 100);
-          found_devices++;
-      }
-  }
-
-  if (found_devices == 0) {
-      char no_dev[] = "Nie znaleziono zadnych urzadzen I2C!\r\n";
-      HAL_UART_Transmit(&huart1, (uint8_t*)no_dev, strlen(no_dev), 100);
-  } else {
-      char done[] = "Skanowanie zakonczone.\r\n";
-      HAL_UART_Transmit(&huart1, (uint8_t*)done, strlen(done), 100);
-  }
-
-  MPU6050_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    GPIO_PinState current_btn = HAL_GPIO_ReadPin(start_recording_GPIO_Port, start_recording_Pin);
-    static GPIO_PinState last_btn = GPIO_PIN_RESET;
-    static uint8_t system_active = 0;
-
-    // Zbocze narastające (Wciśnięcie)
-    if (current_btn == GPIO_PIN_SET && last_btn == GPIO_PIN_RESET) {
-        system_active = 1;
-        uart_data.recording = 1;
-
-        const char *msg = "START\r\n";
-        HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), 100);
-    }
-
-    // Zbocze opadające (Puszczenie)
-    if (current_btn == GPIO_PIN_RESET && last_btn == GPIO_PIN_SET) {
-        system_active = 0;
-        uart_data.recording = 0;
-
-        const char *msg = "STOP\r\n";
-        HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), 100);
-    }
-
-    last_btn = current_btn;
-
-    // --- GŁÓWNA LOGIKA ---
-    if (system_active) {
+while (1)
+{
+    // Sprawdzenie przycisku lub flagi UART
+    if(HAL_GPIO_ReadPin(start_recording_GPIO_Port, start_recording_Pin) == GPIO_PIN_SET || uart_data.recording == RECORDING) 
+    {
+        uart_data.recording = RECORDING;
         Mode_setting(&uart_data);
-        MPU6050_Read_All(&mpu6050_data);
+
+        // Zmienna lokalna, resetowana przy każdym wejściu w tryb nagrywania
+        uint32_t actual_samples_number = 0; 
+
+        while (actual_samples_number < NUMBER_OF_SAMPLES) 
+        {
+            uint32_t start_time = HAL_GetTick();
+
+            MPU6050_Read_All(&mpu6050_data);
+            convert_mpu_data_to_uart(&mpu6050_data, &uart_data);
+            send_data_over_uart(&uart_data);
+
+            actual_samples_number++;
+
+            // Obsługa opóźnienia z poprawką na czas trwania operacji
+            uint32_t elapsed = HAL_GetTick() - start_time;
+            if(elapsed < ONE_SAMPLE_TIME) {
+                HAL_Delay(ONE_SAMPLE_TIME - elapsed);
+            }
+        }
+        
+
+        //We send end frame to via UART to inform user that recording has ended
+        uart_data.recording = NOT_RECORDING; 
         convert_mpu_data_to_uart(&mpu6050_data, &uart_data);
         send_data_over_uart(&uart_data);
+        // Opcjonalnie: poinformuj użytkownika przez UART, że koniec
     }
+}
 
-    HAL_Delay(10); // Opóźnienie 10ms (100Hz)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -277,7 +260,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 9600;
+  huart1.Init.BaudRate = 115200;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
