@@ -135,9 +135,9 @@ while (1)
 
         // Zmienna lokalna, resetowana przy każdym wejściu w tryb nagrywania
         uint32_t actual_samples_number = 0; 
-
-        while (actual_samples_number < NUMBER_OF_SAMPLES) 
-        {
+        if(uart_data.mode != MODE_4){
+          while (actual_samples_number < NUMBER_OF_SAMPLES) 
+          {
             uint32_t start_time = HAL_GetTick();
 
             MPU6050_Read_All(&mpu6050_data);
@@ -151,15 +151,19 @@ while (1)
             if(elapsed < ONE_SAMPLE_TIME) {
                 HAL_Delay(ONE_SAMPLE_TIME - elapsed);
             }
-        }
-        
+          }
+        }else{
+          while(HAL_GPIO_ReadPin(start_recording_GPIO_Port, start_recording_Pin) == GPIO_PIN_SET)
+          {
+            uint32_t start_time = HAL_GetTick();
 
-        //We send end frame to via UART to inform user that recording has ended
-        uart_data.recording = NOT_RECORDING; 
-        convert_mpu_data_to_uart(&mpu6050_data, &uart_data);
-        send_data_over_uart(&uart_data);
-        // Opcjonalnie: poinformuj użytkownika przez UART, że koniec
-    }
+              //We send end frame to via UART to inform user that recording has ended
+              uart_data.recording = NOT_RECORDING; 
+              convert_mpu_data_to_uart(&mpu6050_data, &uart_data);
+              send_data_over_uart(&uart_data);
+              // Opcjonalnie: poinformuj użytkownika przez UART, że koniec
+          }
+        }
 }
 
     /* USER CODE END WHILE */
