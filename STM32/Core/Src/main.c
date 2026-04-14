@@ -123,55 +123,57 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
 while (1)
 {
-    // Sprawdzenie przycisku lub flagi UART
-    if(HAL_GPIO_ReadPin(start_recording_GPIO_Port, start_recording_Pin) == GPIO_PIN_SET || uart_data.recording == RECORDING) 
+    /* 1. Sprawdzenie warunku startu (Przycisk LUB flaga z UART) */
+    if (HAL_GPIO_ReadPin(start_recording_GPIO_Port, start_recording_Pin) == GPIO_PIN_SET || 
+        uart_data.recording == RECORDING) 
     {
+        // Przygotowanie do nagrywania
         uart_data.recording = RECORDING;
         Mode_setting(&uart_data);
+        
+        uint32_t actual_samples_number = 0;
 
-        // Zmienna lokalna, resetowana przy każdym wejściu w tryb nagrywania
-        uint32_t actual_samples_number = 0; 
-        if(uart_data.mode != MODE_4){
-          while (actual_samples_number < NUMBER_OF_SAMPLES) 
-          {
+        /* 2. Główna pętla nagrywania */
+        // Działa jeśli: (Tryb limitowany i nie przekroczono próbek) LUB (Tryb ciągły i wciśnięty przycisk)
+        while ((uart_data.mode != MODE_4 && actual_samples_number < NUMBER_OF_SAMPLES) || 
+               (uart_data.mode == MODE_4 && HAL_GPIO_ReadPin(start_recording_GPIO_Port, start_recording_Pin) == GPIO_PIN_SET)) 
+        {
             uint32_t start_time = HAL_GetTick();
 
+            // POBIERANIE DANYCH
             MPU6050_Read_All(&mpu6050_data);
+            
+            // PRZYGOTOWANIE I WYSYŁKA
             convert_mpu_data_to_uart(&mpu6050_data, &uart_data);
             send_data_over_uart(&uart_data);
 
+            // Inkrementacja licznika (ważna dla trybów 1-3)
             actual_samples_number++;
 
-            // Obsługa opóźnienia z poprawką na czas trwania operacji
+            // KONTROLA CZĘSTOTLIWOŚCI (Stały interwał)
             uint32_t elapsed = HAL_GetTick() - start_time;
-            if(elapsed < ONE_SAMPLE_TIME) {
+            if (elapsed < ONE_SAMPLE_TIME) 
+            {
                 HAL_Delay(ONE_SAMPLE_TIME - elapsed);
             }
-          }
-        }else{
-          while(HAL_GPIO_ReadPin(start_recording_GPIO_Port, start_recording_Pin) == GPIO_PIN_SET)
-          {
-            uint32_t start_time = HAL_GetTick();
-
-              //We send end frame to via UART to inform user that recording has ended
-              uart_data.recording = NOT_RECORDING; 
-              convert_mpu_data_to_uart(&mpu6050_data, &uart_data);
-              send_data_over_uart(&uart_data);
-              // Opcjonalnie: poinformuj użytkownika przez UART, że koniec
-          }
         }
+
+        /* 3. Zakończenie sesji nagrywania */
+        uart_data.recording = NOT_RECORDING;
+        
+        // Opcjonalnie: wyślij ramkę stopu, aby aplikacja na PC wiedziała, że koniec
+        // send_stop_frame_over_uart(&uart_data); 
+
+        // Krótki debouncing przycisku, żeby po puszczeniu nie wystartował od razu ponownie
+        HAL_Delay(100); 
+    }
+    
+    /* Tutaj procesor "odpoczywa" i czeka na kolejną akcję użytkownika */
 }
-
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
-  }
   /* USER CODE END 3 */
-}
+
 
 /**
   * @brief System Clock Configuration
