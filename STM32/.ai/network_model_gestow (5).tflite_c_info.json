@@ -593,44 +593,44 @@
   ],
   "environment": {
     "generated_model": {
-      "generated_time": "2026-04-16T20:57:10+0200",
+      "generated_time": "2026-04-16T22:57:36+0200",
       "model_files": [
         {
           "name": "network_data_params.h",
-          "signature": "0x4f8eb4312c96c67b0435eef4a3a3ed75"
+          "signature": "0x696a6c8754155cffc7032b00e55c7ab8"
         },
         {
           "name": "network_data_params.c",
-          "signature": "0xbd7d7d33bff6ec138a597dfe36e4284b"
+          "signature": "0x523df316e2dfab7fda3fee15cf28cc53"
         },
         {
           "name": "network_data.h",
-          "signature": "0x93b44f34806605b0472e1dcb6fefe985"
+          "signature": "0xbcbfc7396bd2fea244fb23df0036b2bf"
         },
         {
           "name": "network_data.c",
-          "signature": "0xba5c25a584a2485e0b5a82336e91371e"
+          "signature": "0x60abb0ca1a147629adff7510cf8ecadc"
         },
         {
           "name": "network_config.h",
-          "signature": "0x0bece83ee3317831446fbe11006fb10d"
+          "signature": "0x31ca3f9c7c3666847968ee8f14e3bf5b"
         },
         {
           "name": "network.h",
-          "signature": "0xf0c265a7380ebd17980c01390ca68d39"
+          "signature": "0x291a8eb9b906d63f278cf074098ce3b8"
         },
         {
           "name": "network.c",
-          "signature": "0x92c25eec07d9ec09ffc50e1da59a06de"
+          "signature": "0x1aa5b8787547af2fdc91ad43d76ad1da"
         }
       ],
       "name": "network"
     },
-    "network_signature": "0xb16f8bffc13e2755",
+    "network_signature": "0xbe4dcea6286a7568",
     "test_name": "",
     "tools": [
       {
-        "arguments": "generate --target stm32f4 --name network -m D:/Pulpit/model_gestow (5).tflite --compression none --verbosity 1 --workspace C:/Users/ostro/AppData/Local/Temp/mxAI_workspace1776384126230004291581740730859746 --output C:/Users/ostro/.stm32cubemx/network_output",
+        "arguments": "analyze --target stm32f4 --name network -m D:/Pulpit/model_gestow (5).tflite --compression none --verbosity 1 --workspace C:/Users/ostro/AppData/Local/Temp/mxAI_workspace184865914515900576670119035230806 --output C:/Users/ostro/.stm32cubemx/network_output",
         "environment": [
           "STATS_TYPE=X-CUBE-AI"
         ],

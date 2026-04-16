@@ -18,6 +18,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "stm32f4xx_hal.h"
+#include <stdint.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -39,6 +41,9 @@
 #define ONE_FULL_SYMBOL_TIME 2000 // Czas w ms między kolejnymi odczytami z MPU6050
 #define ONE_SAMPLE_TIME 20 // Czas w ms między kolejnymi odczytami z MPU6050 podczas nagrywania
 #define NUMBER_OF_SAMPLES ONE_FULL_SYMBOL_TIME / ONE_SAMPLE_TIME // Liczba próbek do zebrania podczas nagrywania
+
+static MPU6050_Data ONE_BATCH[BATCH_SIZE] = {0}; // Tablica do przechowywania ostatnich 10 odczytów
+static MPU6050_Data Last_known_data = {0}; // Struktura do przechowywania ostatniego odczytu
 
 /* USER CODE END PM */
 
@@ -102,27 +107,29 @@ int main(void)
   MX_I2C1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  struct UART_DATA uart_data = {
-    .Accel_X = 0.0f,
-    .Accel_Y = 0.0f,
-    .Accel_Z = 0.0f,
-    .Gyro_X = 0.0f,
-    .Gyro_Y = 0.0f,
-    .Gyro_Z = 0.0f,
-    .mode = MODE_1, // Domyślny tryb
-    .recording = NOT_RECORDING // Domyślnie nie nagrywamy
-  };
 
   char test[] = "Test połączenia!\r\n";
   HAL_UART_Transmit(&huart1, (uint8_t*)test, strlen(test), 100);
   HAL_Delay(1000);
 
+  
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    if(HAL_GetTick() - Last_known_data.timestamp >= ONE_FULL_SYMBOL_TIME) {
+        MPU6050_Read_All(&Last_known_data);
+        MPU6050_Batch_Push_Data(&Last_known_data);
+
+        //now we can process via ML.
+        //here we prcecess this batch
+        
+
+        //after processing we can send result via UART or do something else with it.
+
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

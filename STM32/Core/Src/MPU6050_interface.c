@@ -14,8 +14,7 @@ uint8_t check;
 uint8_t data;
 
 
-void I2C_BusRecovery(void)
-{
+void I2C_BusRecovery(void){
     GPIO_InitTypeDef GPIO_InitStruct = {0};
 
     // 1. Ustaw GPIO jako open-drain
@@ -43,16 +42,14 @@ void I2C_BusRecovery(void)
     HAL_Delay(1);
 }
 
-void I2C_Reset(void)
-{
+void I2C_Reset(void){
     HAL_I2C_DeInit(&hi2c1);
     I2C_BusRecovery();
     HAL_I2C_Init(&hi2c1);
 }
 
 
-uint8_t MPU6050_Init(void)
-{
+uint8_t MPU6050_Init(void){
     uint8_t check = 0;
     uint8_t data;
 
@@ -177,3 +174,22 @@ void MPU6050_Read_All(struct MPU6050_Data* data) {
     // 4. Zapisz obecny stan do porównania
     last_known_data = *data;
 }
+
+
+// --- Interface for BATCH PROCESSING ---
+
+
+static MPU6050_Data ONE_BATCH[BATCH_SIZE] = {0};
+
+MPU6050_Data MPU6050_Batch_Read(void) {
+    return ONE_BATCH;
+}
+
+void MPU6050_Batch_Push_Data(struct MPU6050_Data* new_data) {
+    memmove(ONE_BATCH + 1, ONE_BATCH, (BATCH_SIZE - 1) * sizeof(MPU6050_Data)); // Przesuń dane w prawo
+    ONE_BATCH[0] = *new_data; // Wstaw nowe dane na początek
+}
+
+
+
+
