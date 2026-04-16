@@ -18,9 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "MPU6050_interface.h"
-#include "stm32f4xx_hal_gpio.h"
-#include <stdint.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -124,70 +121,15 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-#define ONE_SAMPLE_TIME 20 
-#define FIXED_SAMPLES_COUNT 60 
+  while (1)
+  {
+    /* USER CODE END WHILE */
 
-// ... wewnątrz main/pętli ...
-
-while (1)
-{
-    /* 1. Warunek startu */
-    if (HAL_GPIO_ReadPin(start_recording_GPIO_Port, start_recording_Pin) == GPIO_PIN_SET || 
-        uart_data.recording == RECORDING) 
-    {
-        uart_data.recording = RECORDING;
-        Mode_setting(&uart_data);
-        
-        uint32_t actual_samples_number = 0;
-        bool keep_recording = true;
-
-        /* 2. Główna pętla nagrywania (Wysyła ramki z statusem RECORDING) */
-        while (keep_recording) 
-        {
-            uint32_t start_time = HAL_GetTick();
-
-            MPU6050_Read_All(&mpu6050_data);
-            convert_mpu_data_to_uart(&mpu6050_data, &uart_data);
-            // Tu uart_data.recording jest nadal ustawione na RECORDING
-            send_data_over_uart(&uart_data);
-
-            actual_samples_number++;
-
-            // Sprawdzenie warunków końca
-            if (uart_data.mode == MODE_4) {
-                if (HAL_GPIO_ReadPin(start_recording_GPIO_Port, start_recording_Pin) == GPIO_PIN_RESET) {
-                    keep_recording = false;
-                }
-            } else {
-                if (actual_samples_number >= NUMBER_OF_SAMPLES) {
-                    keep_recording = false;
-                }
-            }
-
-            // Kontrola czasu
-            uint32_t elapsed = HAL_GetTick() - start_time;
-            if (elapsed < ONE_SAMPLE_TIME) {
-                HAL_Delay(ONE_SAMPLE_TIME - elapsed);
-            }
-        }
-
-        /* 3. FINALIZACJA - Wysyłka ostatniej ramki z flagą NOT_RECORDING */
-        uart_data.recording = NOT_RECORDING;
-        
-        // Pobieramy ostatni raz dane, żeby ramka była kompletna
-        MPU6050_Read_All(&mpu6050_data);
-        convert_mpu_data_to_uart(&mpu6050_data, &uart_data);
-        
-        // To jest ta kluczowa wysyłka informująca PC o końcu transmisji
-        send_data_over_uart(&uart_data);
-
-        // Debouncing - zapobiega ponownemu wyzwoleniu przy puszczaniu przycisku
-        HAL_Delay(200); 
-    }
-}
+    /* USER CODE BEGIN 3 */
+  }
   /* USER CODE END 3 */
-
 }
+
 /**
   * @brief System Clock Configuration
   * @retval None
@@ -208,7 +150,12 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = 8;
+  RCC_OscInitStruct.PLL.PLLN = 100;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ = 7;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -218,12 +165,12 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
   {
     Error_Handler();
   }
