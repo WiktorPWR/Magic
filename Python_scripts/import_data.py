@@ -4,7 +4,7 @@ import csv
 from datetime import datetime
 
 SERIAL_PORT = 'COM5'
-BAUD_RATE = 9600
+BAUD_RATE = 115200
 BASE_DIR = "D:\\Pulpit\\STM\\Magic\\Magic\\Python_scripts\\raw_data"
 
 def get_csv_filename():
@@ -12,47 +12,43 @@ def get_csv_filename():
 
 def parse_line(line):
     """
-    Parsuje dokładnie:
-    A:-58,3,90 | G:-303,357,-165 | M:0 | R:1 | T:5120
+    Parsuje ramkę: A:-58,3,90 | G:-303,357,-165 | M:0 | R:1 | T:5120
     """
     try:
         parts = [p.strip() for p in line.split('|')]
 
-        # A:...
+        # Akcelerometr
         acc = parts[0].split(':')[1].split(',')
         ax, ay, az = [int(x)/100.0 for x in acc]
 
-        # G:...
+        # Żyroskop
         gyro = parts[1].split(':')[1].split(',')
         gx, gy, gz = [int(x)/100.0 for x in gyro]
 
-        # M:...
+        # M: Tryb
         mode = int(parts[2].split(':')[1])
 
-        # R:...
+        # R: Status nagrywania (0 lub 1)
         recording = int(parts[3].split(':')[1])
 
-        # T:...
+        # T: Timestamp
         timestamp = int(parts[4].split(':')[1])
 
         return ax, ay, az, gx, gy, gz, mode, recording, timestamp
-
     except Exception:
         return None
-
 
 def parse_uart_data():
     os.makedirs(BASE_DIR, exist_ok=True)
 
     current_file = None
     csv_writer = None
-    is_recording = False
+    is_recording_active = False  # Flaga śledząca czy plik jest otwarty
     mcu_start_time = None
-    current_mode = 0
 
     try:
         with serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1) as ser:
-            print(f"Nasłuchiwanie na {SERIAL_PORT}...")
+            print(f"Nasłuchiwanie na {SERIAL_PORT} (reakcja na flagę R:)...")
 
             while True:
                 line = ser.readline().decode(errors='ignore').strip()
@@ -60,67 +56,50 @@ def parse_uart_data():
                 if not line:
                     continue
 
-                # ========================
-                # ====== START ===========
-                # ========================
-                if line == "START":
-                    if not is_recording:
-                        is_recording = True
-                        mcu_start_time = None
-
-                        mode_dir = os.path.join(BASE_DIR, f"mode_{current_mode}")
-                        os.makedirs(mode_dir, exist_ok=True)
-
-                        file_path = os.path.join(mode_dir, get_csv_filename())
-                        current_file = open(file_path, 'w', newline='')
-                        csv_writer = csv.writer(current_file)
-
-                        csv_writer.writerow([
-                            'MCU_Time_ms',
-                            'Relative_Time_ms',
-                            'AX', 'AY', 'AZ',
-                            'GX', 'GY', 'GZ'
-                        ])
-
-                        print(f"\n[START] Nagrywanie -> {file_path}")
-                    continue
-
-                # ========================
-                # ====== STOP ============
-                # ========================
-                if line == "STOP":
-                    if is_recording:
-                        is_recording = False
-                        if current_file:
-                            current_file.close()
-                            current_file = None
-                        print(f"\n[STOP] Plik zapisany.")
-                    continue
-
-                # ========================
-                # ====== DANE ============
-                # ========================
                 parsed = parse_line(line)
                 if not parsed:
                     continue
 
                 ax, ay, az, gx, gy, gz, mode, rec, timestamp = parsed
-                current_mode = mode  # zapamiętujemy tryb
 
-                # ustawienie czasu startowego (pierwsza próbka)
-                if is_recording and mcu_start_time is None:
+                # --- LOGIKA STARTU NAGRYWANIA (Gdy rec zmienia się z 0 na 1) ---
+                if rec == 1 and not is_recording_active:
+                    is_recording_active = True
                     mcu_start_time = timestamp
+                    
+                    # Tworzenie folderu dla trybu
+                    mode_dir = os.path.join(BASE_DIR, f"mode_{mode}")
+                    os.makedirs(mode_dir, exist_ok=True)
 
-                if is_recording and csv_writer:
+                    file_path = os.path.join(mode_dir, get_csv_filename())
+                    current_file = open(file_path, 'w', newline='')
+                    csv_writer = csv.writer(current_file)
+
+                    csv_writer.writerow([
+                        'MCU_Time_ms', 'Relative_Time_ms',
+                        'AX', 'AY', 'AZ', 'GX', 'GY', 'GZ'
+                    ])
+                    print(f"\n[START] Wykryto flagę R:1. Nagrywanie -> {file_path}")
+
+                # --- LOGIKA ZAPISU DANYCH ---
+                if is_recording_active and csv_writer:
                     rel_time = timestamp - mcu_start_time
                     csv_writer.writerow([
                         timestamp, rel_time,
-                        ax, ay, az,
-                        gx, gy, gz
+                        ax, ay, az, gx, gy, gz
                     ])
 
-                # live podgląd
-                print(f"T:{timestamp:6} | M:{mode} | AX:{ax:6.2f}", end='\r')
+                # --- LOGIKA STOPU NAGRYWANIA (Gdy rec zmienia się z 1 na 0) ---
+                if rec == 0 and is_recording_active:
+                    is_recording_active = False
+                    if current_file:
+                        current_file.close()
+                        current_file = None
+                    print(f"\n[STOP] Wykryto flagę R:0. Plik zamknięty.")
+
+                # Live podgląd w konsoli
+                status = "REC" if rec == 1 else "IDLE"
+                print(f"[{status}] T:{timestamp:6} | M:{mode} | AX:{ax:6.2f}", end='\r')
 
     except serial.SerialException as e:
         print(f"\nBłąd portu: {e}")
@@ -129,7 +108,6 @@ def parse_uart_data():
     finally:
         if current_file:
             current_file.close()
-
 
 if __name__ == "__main__":
     parse_uart_data()

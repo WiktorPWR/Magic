@@ -42,6 +42,7 @@
 #define ONE_FULL_SYMBOL_TIME 2000 // Czas w ms między kolejnymi odczytami z MPU6050
 #define ONE_SAMPLE_TIME 20 // Czas w ms między kolejnymi odczytami z MPU6050 podczas nagrywania
 #define NUMBER_OF_SAMPLES ONE_FULL_SYMBOL_TIME / ONE_SAMPLE_TIME // Liczba próbek do zebrania podczas nagrywania
+
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -123,58 +124,70 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+#define ONE_SAMPLE_TIME 20 
+#define FIXED_SAMPLES_COUNT 60 
+
+// ... wewnątrz main/pętli ...
+
 while (1)
 {
-    /* 1. Sprawdzenie warunku startu (Przycisk LUB flaga z UART) */
+    /* 1. Warunek startu */
     if (HAL_GPIO_ReadPin(start_recording_GPIO_Port, start_recording_Pin) == GPIO_PIN_SET || 
         uart_data.recording == RECORDING) 
     {
-        // Przygotowanie do nagrywania
         uart_data.recording = RECORDING;
         Mode_setting(&uart_data);
         
         uint32_t actual_samples_number = 0;
+        bool keep_recording = true;
 
-        /* 2. Główna pętla nagrywania */
-        // Działa jeśli: (Tryb limitowany i nie przekroczono próbek) LUB (Tryb ciągły i wciśnięty przycisk)
-        while ((uart_data.mode != MODE_4 && actual_samples_number < NUMBER_OF_SAMPLES) || 
-               (uart_data.mode == MODE_4 && HAL_GPIO_ReadPin(start_recording_GPIO_Port, start_recording_Pin) == GPIO_PIN_SET)) 
+        /* 2. Główna pętla nagrywania (Wysyła ramki z statusem RECORDING) */
+        while (keep_recording) 
         {
             uint32_t start_time = HAL_GetTick();
 
-            // POBIERANIE DANYCH
             MPU6050_Read_All(&mpu6050_data);
-            
-            // PRZYGOTOWANIE I WYSYŁKA
             convert_mpu_data_to_uart(&mpu6050_data, &uart_data);
+            // Tu uart_data.recording jest nadal ustawione na RECORDING
             send_data_over_uart(&uart_data);
 
-            // Inkrementacja licznika (ważna dla trybów 1-3)
             actual_samples_number++;
 
-            // KONTROLA CZĘSTOTLIWOŚCI (Stały interwał)
+            // Sprawdzenie warunków końca
+            if (uart_data.mode == MODE_4) {
+                if (HAL_GPIO_ReadPin(start_recording_GPIO_Port, start_recording_Pin) == GPIO_PIN_RESET) {
+                    keep_recording = false;
+                }
+            } else {
+                if (actual_samples_number >= NUMBER_OF_SAMPLES) {
+                    keep_recording = false;
+                }
+            }
+
+            // Kontrola czasu
             uint32_t elapsed = HAL_GetTick() - start_time;
-            if (elapsed < ONE_SAMPLE_TIME) 
-            {
+            if (elapsed < ONE_SAMPLE_TIME) {
                 HAL_Delay(ONE_SAMPLE_TIME - elapsed);
             }
         }
 
-        /* 3. Zakończenie sesji nagrywania */
+        /* 3. FINALIZACJA - Wysyłka ostatniej ramki z flagą NOT_RECORDING */
         uart_data.recording = NOT_RECORDING;
         
-        // Opcjonalnie: wyślij ramkę stopu, aby aplikacja na PC wiedziała, że koniec
-        // send_stop_frame_over_uart(&uart_data); 
+        // Pobieramy ostatni raz dane, żeby ramka była kompletna
+        MPU6050_Read_All(&mpu6050_data);
+        convert_mpu_data_to_uart(&mpu6050_data, &uart_data);
+        
+        // To jest ta kluczowa wysyłka informująca PC o końcu transmisji
+        send_data_over_uart(&uart_data);
 
-        // Krótki debouncing przycisku, żeby po puszczeniu nie wystartował od razu ponownie
-        HAL_Delay(100); 
+        // Debouncing - zapobiega ponownemu wyzwoleniu przy puszczaniu przycisku
+        HAL_Delay(200); 
     }
-    
-    /* Tutaj procesor "odpoczywa" i czeka na kolejną akcję użytkownika */
 }
   /* USER CODE END 3 */
 
-
+}
 /**
   * @brief System Clock Configuration
   * @retval None
