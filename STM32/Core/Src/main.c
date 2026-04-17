@@ -4,16 +4,6 @@
   * @file           : main.c
   * @brief          : Main program body
   ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2026 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
@@ -21,7 +11,12 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "MPU6050_interface.h"
+#include "ai_platform.h"
+#include "network.h"      // Zmieniono na relatywną ścieżkę (zakładając poprawny Include Path w CMake)
+#include "network_data.h"
+#include <string.h>       // Dla memset i memcpy
+#include <stdio.h>        // Dla sprintf
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -53,6 +48,15 @@ DMA_HandleTypeDef hdma_i2c1_rx;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
+// Zmienne dla AI
+ai_handle network = AI_HANDLE_NULL;
+ai_buffer *ai_input;
+ai_buffer *ai_output;
+static ai_network_params params;
+/* * POPRAWKA 1: Wymuszenie wyrównania buforów do 32 bajtów (aligned(32)).
+ * Zapobiega to błędowi PRECISERR (BusFault) podczas dostępu silnika AI do danych.
+ */
+
 
 
 
@@ -70,7 +74,44 @@ static void MX_USART1_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+/**
+ * POPRAWKA 3: Kompletna i bezpieczna funkcja inicjalizacji.
+ * Przekazuje uchwyt 'network' do funkcji pobierających bufory wag i aktywacji.
+ */
+void MX_X_CUBE_AI_Init(void) {
+    ai_error err;
 
+    // 1. Utworzenie instancji
+    err = ai_network_create(&network, AI_NETWORK_DATA_CONFIG);
+    if (err.type != AI_ERROR_NONE) {
+        HAL_UART_Transmit(&huart1, (uint8_t*)"CREATE ERR\r\n", 12, 100);
+        return;
+    }
+
+    // 2. Czyścimy całą strukturę params (w tym unię i obie struktury wewnątrz)
+    memset(&params, 0, sizeof(ai_network_params));
+
+    // 3. Konfiguracja wag (pobieramy domyślne z modelu)
+    params.params = ai_network_data_weights_buffer_get(AI_HANDLE_PTR(network));
+
+    // 4. RĘCZNA KONFIGURACJA AKTYWACJI (zgodnie z Twoją strukturą ai_buffer)
+    // Używamy AI_BUFFER_FORMAT_NONE lub 0, bo to surowy bufor pamięci dla silnika
+    params.activations.format    = 0; 
+    params.activations.data      = AI_HANDLE_PTR(pool0); // Twój bufor 11KB
+    params.activations.meta_info = NULL;
+    params.activations.flags     = 0;
+    params.activations.size      = 11264; // Liczba bajtów
+
+    // Opcjonalnie: kształt bufora (często wymagane, by nie był zerem)
+    // Jeśli Twoja struktura ma n_chunks, ustaw go na 1
+    //params.activations.shape.n_chunks = 1; 
+
+    // 5. Przekazanie wszystkiego do silnika
+    if (!ai_network_init(network, &params)) {
+        HAL_UART_Transmit(&huart1, (uint8_t*)"INIT FAIL\r\n", 11, 100);
+        while(1);
+    }
+}
 /* USER CODE END 0 */
 
 /**
@@ -107,7 +148,6 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
-  char test[] = "Test połączenia!\r\n";
   HAL_UART_Transmit(&huart1, (uint8_t*)test, strlen(test), 100);
   HAL_Delay(1000);
 
