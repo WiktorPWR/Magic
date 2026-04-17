@@ -3,75 +3,89 @@
 #include "network_data.h"
 #include <string.h>
 
-// 1. Bufory pamięci zgodnie z raportem
-// Activations (RAM) - 8936 bajtów
+// 1. Bufory pamięci - rozmiar brany z makra wygenerowanego przez AI
 AI_ALIGNED(32) static ai_u8 activations[AI_NETWORK_DATA_ACTIVATIONS_SIZE];
 
 // 2. Uchwyty dla modelu
 static ai_handle network_handle = AI_HANDLE_NULL;
-
-// Bufory wejścia/wyjścia (same struktury opisujące dane)
-static ai_buffer ai_input[AI_NETWORK_IN_NUM];
-static ai_buffer ai_output[AI_NETWORK_OUT_NUM];
+static ai_network_report report;
 
 bool ML_Init(void) {
     ai_error err;
 
-    // Tworzenie instancji sieci
+    // 1. Tworzenie instancji sieci
+    // Upewnij się, że AI_NETWORK_DATA_CONFIG jest zdefiniowane w network_data.h
     err = ai_network_create(&network_handle, AI_NETWORK_DATA_CONFIG);
     if (err.type != AI_ERROR_NONE) return false;
 
-    // Konfiguracja parametrów (Wagi we Flashu i Aktywacje w RAM)
-    const ai_network_params params = {
-        AI_NETWORK_DATA_WEIGHTS_GET(),
-        AI_NETWORK_DATA_ACTIVATIONS_GET(activations)
-    };
+    // 2. Przygotowanie parametrów
+    ai_network_params params;
 
-    // Inicjalizacja sieci
-    if (!ai_network_init(network_handle, &params)) {
+    // Pobieramy bazową konfigurację (to wypełnia formaty danych i flagi)
+    if (!ai_network_data_params_get(&params)) {
         return false;
     }
 
-    // Pobranie opisów buforów (żeby wiedzieć, gdzie sieć chce dostać dane)
-    ai_network_inputs_get(network_handle, ai_input);
-    ai_network_outputs_get(network_handle, ai_output);
+    // 3. RĘCZNE POWIĄZANIE WAG I AKTYWACJI (Najbezpieczniejsza metoda)
+    // Używamy bezpośrednio funkcji z network_data.h, rzutując na ai_handle
+    
+    // Ustawienie wag (z Flasha)
+    params.params = ai_network_data_weights_buffer_get(ai_network_data_weights_get());
+    
+    // Ustawienie aktywacji (Twój bufor w RAM)
+    params.activations = ai_network_data_activations_buffer_get((ai_handle)activations);
+
+    // 4. Inicjalizacja sieci
+    if (!ai_network_init(network_handle, &params)) {
+        // Jeśli tu wejdziesz, sprawdź w debuggerze: 
+        // ai_network_get_error(network_handle)
+        return false;
+    }
+
+    // 5. Pobranie raportu
+    if (!ai_network_get_report(network_handle, &report)) {
+        return false;
+    }
 
     return true;
 }
-
-
-
-
 /**
- * @brief Uruchamia model
- * @param input_data_360_floats Wskaźnik na 360 floatów (60 próbek * 6 osi)
- * @param out_confidence Wskaźnik na float, gdzie zapiszemy pewność siebie modelu
- * @return int ID wygrywającej klasy (0-3)
+ * @param input_data_600_floats: Tablica 100 próbek * 6 osi
  */
-int ML_RunInference(float* input_data_360_floats, float* out_confidence) {
+/**
+ * @param out_confidences: Wskaźnik na tablicę float[4], gdzie zapiszemy pewność KAŻDEJ klasy
+ */
+int ML_RunInference(float* input_data_600_floats, float* out_confidences) {
     
-    // 1. Skopiuj dane do bufora wejściowego sieci
-    // ai_input[0].data to wskaźnik do wnętrza bufora activations
-    memcpy(ai_input[0].data, input_data_360_floats, 60 * 6 * sizeof(float));
+    ai_buffer ai_input = report.inputs[0];
+    ai_buffer ai_output = report.outputs[0];
 
-    // 2. Uruchom model
-    ai_i32 n_batch = ai_network_run(network_handle, &ai_input[0], &ai_output[0]);
-    if (n_batch != 1) return -1;
+    ai_input.data = AI_HANDLE_PTR(input_data_600_floats);
+    
+    // Wyniki lokalne (AI zapisze tutaj 4 wartości)
+    float results[4] = {0.0f};
+    ai_output.data = AI_HANDLE_PTR(results);
 
-    // 3. Odczytaj wyniki (Output: 1x4 floaty)
-    float* results = (float*)ai_output[0].data;
+    if (ai_network_run(network_handle, &ai_input, &ai_output) != 1) {
+        return -1;
+    }
 
-    // 4. Znajdź najlepszą klasę (ArgMax)
+    // 1. Znajdź najlepszą klasę (ArgMax)
     int best_class = 0;
-    float max_score = 0.0f;
+    float max_score = -1.0f;
 
     for (int i = 0; i < 4; i++) {
+        // Kopiujemy wszystkie wyniki do tablicy wyjściowej, 
+        // żebyś miał do nich dostęp w main.c
+        if (out_confidences) {
+            out_confidences[i] = results[i];
+        }
+
         if (results[i] > max_score) {
             max_score = results[i];
             best_class = i;
         }
     }
 
-    if (out_confidence) *out_confidence = max_score;
     return best_class;
 }

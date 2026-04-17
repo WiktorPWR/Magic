@@ -44,11 +44,11 @@
       "mpool_id": 0,
       "name": "conv2d_1_output_array",
       "nbits": 32,
-      "offset_start": 1512,
+      "offset_start": 2472,
       "qmn": {},
       "shape": [
         1,
-        58,
+        98,
         32
       ],
       "shape_map": [
@@ -56,7 +56,7 @@
         "W",
         "CH"
       ],
-      "size_bytes": 7424
+      "size_bytes": 12544
     },
     {
       "alignment": 4,
@@ -75,7 +75,7 @@
       "mpool_id": 0,
       "name": "conv2d_1_scratch0_array",
       "nbits": 32,
-      "offset_start": 1440,
+      "offset_start": 2400,
       "qmn": {},
       "shape": [
         1,
@@ -168,11 +168,11 @@
       "mpool_id": 0,
       "name": "conv2d_7_output_array",
       "nbits": 32,
-      "offset_start": 5224,
+      "offset_start": 8744,
       "qmn": {},
       "shape": [
         1,
-        27,
+        47,
         16
       ],
       "shape_map": [
@@ -180,7 +180,7 @@
         "W",
         "CH"
       ],
-      "size_bytes": 1728
+      "size_bytes": 3008
     },
     {
       "alignment": 4,
@@ -265,7 +265,7 @@
       "mpool_id": 1,
       "name": "gemm_13_bias_array",
       "nbits": 32,
-      "offset_start": 36288,
+      "offset_start": 56768,
       "qmn": {},
       "shape": [
         16
@@ -292,7 +292,7 @@
       "mpool_id": 0,
       "name": "gemm_13_output_array",
       "nbits": 32,
-      "offset_start": 1728,
+      "offset_start": 3008,
       "qmn": {},
       "shape": [
         16
@@ -323,13 +323,13 @@
       "qmn": {},
       "shape": [
         16,
-        432
+        752
       ],
       "shape_map": [
         "CH",
         "CH_IN"
       ],
-      "size_bytes": 27648
+      "size_bytes": 48128
     },
     {
       "alignment": 4,
@@ -348,7 +348,7 @@
       "mpool_id": 1,
       "name": "gemm_14_bias_array",
       "nbits": 32,
-      "offset_start": 36608,
+      "offset_start": 57088,
       "qmn": {},
       "shape": [
         4
@@ -402,7 +402,7 @@
       "mpool_id": 1,
       "name": "gemm_14_weights_array",
       "nbits": 32,
-      "offset_start": 36352,
+      "offset_start": 56832,
       "qmn": {},
       "shape": [
         4,
@@ -485,11 +485,11 @@
       "mpool_id": 0,
       "name": "nl_1_nl_output_array",
       "nbits": 32,
-      "offset_start": 1512,
+      "offset_start": 2472,
       "qmn": {},
       "shape": [
         1,
-        58,
+        98,
         32
       ],
       "shape_map": [
@@ -497,7 +497,7 @@
         "W",
         "CH"
       ],
-      "size_bytes": 7424
+      "size_bytes": 12544
     },
     {
       "alignment": 4,
@@ -520,7 +520,7 @@
       "qmn": {},
       "shape": [
         1,
-        27,
+        47,
         16
       ],
       "shape_map": [
@@ -528,7 +528,7 @@
         "W",
         "CH"
       ],
-      "size_bytes": 1728
+      "size_bytes": 3008
     },
     {
       "alignment": 4,
@@ -547,11 +547,11 @@
       "mpool_id": 0,
       "name": "pool_4_output_array",
       "nbits": 32,
-      "offset_start": 1512,
+      "offset_start": 2472,
       "qmn": {},
       "shape": [
         1,
-        29,
+        49,
         32
       ],
       "shape_map": [
@@ -559,7 +559,7 @@
         "W",
         "CH"
       ],
-      "size_bytes": 3712
+      "size_bytes": 6272
     },
     {
       "alignment": 4,
@@ -576,74 +576,74 @@
       "intq": {},
       "is_param": false,
       "mpool_id": 0,
-      "name": "serving_default_keras_tensor_630_output_array",
+      "name": "serving_default_keras_tensor0_output_array",
       "nbits": 32,
       "offset_start": 0,
       "qmn": {},
       "shape": [
-        60,
+        100,
         6
       ],
       "shape_map": [
         "H",
         "CH"
       ],
-      "size_bytes": 1440
+      "size_bytes": 2400
     }
   ],
   "environment": {
     "generated_model": {
-      "generated_time": "2026-04-16T22:57:36+0200",
+      "generated_time": "2026-04-17T17:56:55+0200",
       "model_files": [
         {
           "name": "network_data_params.h",
-          "signature": "0x696a6c8754155cffc7032b00e55c7ab8"
+          "signature": "0x52cb2cf8ea42e2ec7ff2e507f25759a8"
         },
         {
           "name": "network_data_params.c",
-          "signature": "0x523df316e2dfab7fda3fee15cf28cc53"
+          "signature": "0x2b3ff1312cc099916f08a38196af5b18"
         },
         {
           "name": "network_data.h",
-          "signature": "0xbcbfc7396bd2fea244fb23df0036b2bf"
+          "signature": "0xdb2191d26c540ff7ca9d35fbc7e23977"
         },
         {
           "name": "network_data.c",
-          "signature": "0x60abb0ca1a147629adff7510cf8ecadc"
+          "signature": "0x818b915e061e05aea1e6320eab47568b"
         },
         {
           "name": "network_config.h",
-          "signature": "0x31ca3f9c7c3666847968ee8f14e3bf5b"
+          "signature": "0x75901dc53ba4177a5e927e010f91a719"
         },
         {
           "name": "network.h",
-          "signature": "0x291a8eb9b906d63f278cf074098ce3b8"
+          "signature": "0xc1f43ceb58a0a39d8b7e4650296060a0"
         },
         {
           "name": "network.c",
-          "signature": "0x1aa5b8787547af2fdc91ad43d76ad1da"
+          "signature": "0xd7af77a96cde0ebd0b530c5dea6d7d60"
         }
       ],
       "name": "network"
     },
-    "network_signature": "0xbe4dcea6286a7568",
+    "network_signature": "0x4d74a65c4c32f2ec",
     "test_name": "",
     "tools": [
       {
-        "arguments": "analyze --target stm32f4 --name network -m D:/Pulpit/model_gestow (5).tflite --compression none --verbosity 1 --workspace C:/Users/ostro/AppData/Local/Temp/mxAI_workspace184865914515900576670119035230806 --output C:/Users/ostro/.stm32cubemx/network_output",
+        "arguments": "analyze --target stm32f4 --name network -m D:/Pulpit/model_gestow (6).tflite --compression none --verbosity 1 -O time --workspace C:/Users/ostro/AppData/Local/Temp/mxAI_workspace25322645818860015711864056215242980 --output C:/Users/ostro/.stm32cubemx/network_output",
         "environment": [
           "STATS_TYPE=X-CUBE-AI"
         ],
         "input_model": {
           "model_files": [
             {
-              "name": "model_gestow (5).tflite",
-              "signature": "0x0eb46f9b571722a89841a7fb38bc8953"
+              "name": "model_gestow (6).tflite",
+              "signature": "0xafac252ef5871d1a4141a5c2b610a425"
             }
           ],
-          "n_params": 9156,
-          "name": "model_gestow_5",
-          "size": 36624,
+          "n_params": 14276,
+          "name": "model_gestow_6",
+          "size": 57104,
           "type": "tflite"
         },
         "name": "ST.EdgeAI.Core",
@@ -771,7 +771,7 @@
       "inputs": [
         145
       ],
-      "name": "model_gestow_5",
+      "name": "model_gestow_6",
       "nodes": [
         {
           "attributes": {
@@ -793,7 +793,7 @@
             165,
             168
           ],
-          "macc": 33440,
+          "macc": 56480,
           "mapping": "NODE_SW",
           "name": "conv2d_1",
           "original_nodes": [
@@ -819,7 +819,7 @@
           "inputs": [
             147
           ],
-          "macc": 1856,
+          "macc": 3136,
           "mapping": "NODE_SW",
           "name": "nl_1_nl",
           "original_nodes": [
@@ -847,7 +847,7 @@
           "inputs": [
             149
           ],
-          "macc": 1856,
+          "macc": 3136,
           "mapping": "NODE_SW",
           "name": "pool_4",
           "original_nodes": [
@@ -882,7 +882,7 @@
             171,
             174
           ],
-          "macc": 41488,
+          "macc": 72208,
           "mapping": "NODE_SW",
           "name": "conv2d_7",
           "original_nodes": [
@@ -908,7 +908,7 @@
           "inputs": [
             153
           ],
-          "macc": 432,
+          "macc": 752,
           "mapping": "NODE_SW",
           "name": "nl_7_nl",
           "original_nodes": [
@@ -935,7 +935,7 @@
             177,
             180
           ],
-          "macc": 6928,
+          "macc": 12048,
           "mapping": "NODE_SW",
           "name": "gemm_13",
           "original_nodes": [
@@ -1038,10 +1038,10 @@
             "type": "FLOAT",
             "zero": []
           },
-          "name": "serving_default_keras_tensor_630",
+          "name": "serving_default_keras_tensor0",
           "shape": [
             1,
-            60,
+            100,
             6
           ],
           "shape_map": [
@@ -1079,7 +1079,7 @@
   ],
   "json_schema_version": "2.0",
   "memory_footprint": {
-    "activations": 8936,
+    "activations": 15016,
     "io": [
       0,
       0
@@ -1090,7 +1090,7 @@
     "toolchain": "arm-none-eabi-gcc (GNU Tools for STM32 14.3.rel1.20251027-0700) 14.3.1 20250623",
     "toolchain_flash": 736,
     "toolchain_ram": 0,
-    "weights": 36624
+    "weights": 57104
   },
   "memory_pools": [
     {
@@ -1122,7 +1122,7 @@
       "rights": "ACC_WRITE",
       "size_bytes": -1,
       "subpools": [],
-      "used_size_bytes": 8936,
+      "used_size_bytes": 15016,
       "user_allocated": false,
       "virtual": false
     },
@@ -1151,7 +1151,7 @@
       "rights": "ACC_READ",
       "size_bytes": -1,
       "subpools": [],
-      "used_size_bytes": 36624,
+      "used_size_bytes": 57104,
       "user_allocated": false,
       "virtual": false
     }

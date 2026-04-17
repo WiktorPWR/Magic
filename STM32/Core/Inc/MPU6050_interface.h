@@ -25,7 +25,7 @@
 #define GYRO_ZOUT_H_REG 0x47
 #define GYRO_ZOUT_L_REG 0x48
 
-#define BATCH_SIZE 60
+#define BATCH_SIZE 100
 
 struct MPU6050_Data {
     float Accel_X;
@@ -34,7 +34,7 @@ struct MPU6050_Data {
     float Gyro_X;
     float Gyro_Y;
     float Gyro_Z;
-    uint32_t timestamp;
+    //uint32_t timestamp;
 };
 
 extern struct MPU6050_Data mpu6050_data;
@@ -47,7 +47,7 @@ void MPU6050_Read_Gyro(struct MPU6050_Data* data);
 
 void MPU6050_Read_All(struct MPU6050_Data* data);
 
-MPU6050_Data MPU6050_Batch_Read(void);
+void MPU6050_Batch_Read(struct MPU6050_Data one_batch[BATCH_SIZE]);
 
 void MPU6050_Batch_Push_Data(struct MPU6050_Data* new_data);
 

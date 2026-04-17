@@ -18,9 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "ML_interface.h"
-#include "stm32f4xx_hal.h"
-#include <stdint.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -40,11 +37,12 @@
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 #define ONE_FULL_SYMBOL_TIME 2000 // Czas w ms między kolejnymi odczytami z MPU6050
-#define NUMBER_OF_SAMPLES 60 // Liczba próbek do zebrania podczas nagrywania
+#define NUMBER_OF_SAMPLES 100 // Liczba próbek do zebrania podczas nagrywania
 #define ONE_SAMPLE_TIME (ONE_FULL_SYMBOL_TIME/NUMBER_OF_SAMPLES) // Czas w ms między kolejnymi odczytami z MPU6050 podczas nagrywania
+#define ONE_ML_RUN_INTERVAL 500
 
-static MPU6050_Data ONE_BATCH[BATCH_SIZE] = {0}; // Tablica do przechowywania ostatnich 10 odczytów
-static MPU6050_Data Last_known_data = {0}; // Struktura do przechowywania ostatniego odczytu
+static struct MPU6050_Data ONE_BATCH[BATCH_SIZE] = {0}; // Tablica do przechowywania ostatnich 10 odczytów
+static struct MPU6050_Data Last_known_data = {0}; // Struktura do przechowywania ostatniego odczytu
 
 /* USER CODE END PM */
 
@@ -83,7 +81,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+  SCB->CPACR |= ((3UL << 10*2)|(3UL << 11*2));
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -115,30 +113,64 @@ int main(void)
 
   ML_Init();
   uint8_t current_batch_size = 0;
-  float out_confidence[4] = {0.0f};
+  uint32_t last_time =0;
+
+  int vote_stats[4] = {0, 0, 0, 0}; // Licznik wygranych klas
+  uint32_t report_timer = HAL_GetTick();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    if(HAL_GetTick() - Last_known_data.timestamp >= ONE_SAMPLE_TIME) {
+while (1)
+{
+  // --- 1. POBIERANIE PRÓBKI (np. co 20ms) ---
+    if(HAL_GetTick() - last_time >= ONE_SAMPLE_TIME) {
+        last_time = HAL_GetTick(); 
+
         MPU6050_Read_All(&Last_known_data);
-        MPU6050_Batch_Push_Data(&Last_known_data);
-        current_batch_size++;
-        if(!(current_batch_size >= NUMBER_OF_SAMPLES)){
-          break;
-        }else{
-          //We have a full batch of 60 samples, we can process it via ML.
-          ONE_BATCH = MPU6050_Batch_Read();
-          //now we can process via ML.
-          //here we prcecess this batch
-          ML_RunInference((float*)ONE_BATCH, &out_confidence);
-          //after processing we can send result via UART or do something else with it.
-          char test[100];
-          snprintf(test, sizeof(test), "Wynik: %f %f %f %f\r\n", out_confidence[0], out_confidence[1], out_confidence[2], out_confidence[3]);
-          HAL_UART_Transmit(&huart1, (uint8_t*)test, strlen(test), 50);
+        MPU6050_Batch_Push_Data(&Last_known_data); // Zakładam, że to bufor kołowy (Circular Buffer)
+        
+        if(current_batch_size < NUMBER_OF_SAMPLES) {
+            current_batch_size++;
         }
+
+        // --- 2. URUCHOMIENIE AI (Tylko jeśli mamy pełny bufor) ---
+        if(current_batch_size == NUMBER_OF_SAMPLES) {
+            MPU6050_Batch_Read(ONE_BATCH);
+            
+            float confidences[4] = {0.0f};
+            int predicted_class = ML_RunInference((float*)ONE_BATCH, confidences);
+
+            // Głosujemy tylko, jeśli sieć jest pewna (np. powyżej 70%)
+            if(confidences[predicted_class] > 0.70f) {
+                vote_stats[predicted_class]++;
+            }
+        }
+    }
+
+    // --- 3. RAPORT CO 2 SEKUNDY ---
+    if(HAL_GetTick() - report_timer >= 2000) {
+        report_timer = HAL_GetTick();
+
+        // Znajdujemy, który gest zebrał najwięcej głosów
+        int winner = 0;
+        for(int i = 1; i < 4; i++) {
+            if(vote_stats[i] > vote_stats[winner]) winner = i;
+        }
+
+        char report[128];
+        if(vote_stats[winner] > 0) {
+            snprintf(report, sizeof(report), 
+                "\r\n>>> WYNIK 2s: Klasa %d (%d detekcji) | Staty: [0:%d, 1:%d, 2:%d, 3:%d]\r\n", 
+                winner, vote_stats[winner], vote_stats[0], vote_stats[1], vote_stats[2], vote_stats[3]);
+        } else {
+            snprintf(report, sizeof(report), "\r\n>>> WYNIK 2s: Brak pewnych gestow.\r\n");
+        }
+        
+        HAL_UART_Transmit(&huart1, (uint8_t*)report, strlen(report), 100);
+
+        // Resetujemy statystyki na kolejne 2 sekundy
+        memset(vote_stats, 0, sizeof(vote_stats));
     }
     /* USER CODE END WHILE */
 

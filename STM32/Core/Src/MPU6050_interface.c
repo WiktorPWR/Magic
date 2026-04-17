@@ -113,7 +113,17 @@ void MPU6050_Read_All(struct MPU6050_Data* data) {
     // 1. Wykonaj swoje standardowe odczyty
     MPU6050_Read_Accel(data);
     MPU6050_Read_Gyro(data);
-    data->timestamp = HAL_GetTick(); // Dodaj timestamp do danych
+    //data->timestamp = HAL_GetTick(); // Dodaj timestamp do danych
+
+    // --- NORMALIZACJA ---
+    // Musisz rzutować na float i podzielić przez te same wartości co w Pythonie
+    data->Accel_X /= 2.0f;
+    data->Accel_Y /= 2.0f;
+    data->Accel_Z /= 2.0f;
+
+    data->Gyro_X /= 250.0f;
+    data->Gyro_Y /= 250.0f;
+    data->Gyro_Z /= 250.0f;
 
 
     // 2. Porównaj KAŻDĄ wartość z poprzednią (wszystkie 6 osi)
@@ -179,15 +189,17 @@ void MPU6050_Read_All(struct MPU6050_Data* data) {
 // --- Interface for BATCH PROCESSING ---
 
 
-static MPU6050_Data ONE_BATCH[BATCH_SIZE] = {0};
+static struct MPU6050_Data ONE_BATCH[BATCH_SIZE] = {0};
 
-MPU6050_Data MPU6050_Batch_Read(void) {
-    return ONE_BATCH;
+void MPU6050_Batch_Read(struct MPU6050_Data one_batch[BATCH_SIZE]) {
+    memcpy(one_batch, ONE_BATCH, BATCH_SIZE * sizeof(struct MPU6050_Data));
 }
 
 void MPU6050_Batch_Push_Data(struct MPU6050_Data* new_data) {
-    memmove(ONE_BATCH + 1, ONE_BATCH, (BATCH_SIZE - 1) * sizeof(MPU6050_Data)); // Przesuń dane w prawo
-    ONE_BATCH[0] = *new_data; // Wstaw nowe dane na początek
+    memmove(&ONE_BATCH[0], &ONE_BATCH[1], (BATCH_SIZE - 1) * sizeof(struct MPU6050_Data));//Przesuwamy dane w lewo
+    ONE_BATCH[BATCH_SIZE - 1] = *new_data;
+    //memmove(ONE_BATCH + 1, ONE_BATCH, (BATCH_SIZE - 1) * sizeof(struct MPU6050_Data)); // Przesuń dane w prawo
+    //ONE_BATCH[0] = *new_data; // Wstaw nowe dane na początek
 }
 
 
