@@ -7,7 +7,7 @@ import numpy as np
 INPUT_DIR = "D:\\Pulpit\\STM\\Magic\\Magic\\Python_scripts\\raw_data"
 OUTPUT_DIR = "D:\\Pulpit\\STM\\Magic\\Magic\\Python_scripts\\cleaned_data"
 
-SAMPLES_PER_GESTURE = 60 
+SAMPLES_PER_GESTURE = 100 
 
 MODE_TO_LABEL = {
     "mode_0": "L",
@@ -41,7 +41,7 @@ def process_files():
             df[['AX', 'AY', 'AZ']] = df[['AX', 'AY', 'AZ']] / 2.0     # Zakładając +-2g
             df[['GX', 'GY', 'GZ']] = df[['GX', 'GY', 'GZ']] / 250.0   # Zakładając +-250 dps
         
-        # Cięcie na kawałki po 60 próbek
+        # Cięcie na kawałki po 100 próbek
         num_chunks = len(df) // SAMPLES_PER_GESTURE
         for i in range(num_chunks):
             start = i * SAMPLES_PER_GESTURE

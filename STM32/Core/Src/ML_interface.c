@@ -5,8 +5,7 @@
 
 // 1. Bufory pamięci zgodnie z raportem
 // Activations (RAM) - 8936 bajtów
-AI_ALIGNED(32) 
-static ai_u8 activations[AI_NETWORK_DATA_ACTIVATIONS_SIZE];
+AI_ALIGNED(32) static ai_u8 activations[AI_NETWORK_DATA_ACTIVATIONS_SIZE];
 
 // 2. Uchwyty dla modelu
 static ai_handle network_handle = AI_HANDLE_NULL;
@@ -39,6 +38,9 @@ bool ML_Init(void) {
 
     return true;
 }
+
+
+
 
 /**
  * @brief Uruchamia model

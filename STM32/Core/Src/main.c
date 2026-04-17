@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "ML_interface.h"
 #include "stm32f4xx_hal.h"
 #include <stdint.h>
 
@@ -39,8 +40,8 @@
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 #define ONE_FULL_SYMBOL_TIME 2000 // Czas w ms między kolejnymi odczytami z MPU6050
-#define ONE_SAMPLE_TIME 20 // Czas w ms między kolejnymi odczytami z MPU6050 podczas nagrywania
-#define NUMBER_OF_SAMPLES ONE_FULL_SYMBOL_TIME / ONE_SAMPLE_TIME // Liczba próbek do zebrania podczas nagrywania
+#define NUMBER_OF_SAMPLES 60 // Liczba próbek do zebrania podczas nagrywania
+#define ONE_SAMPLE_TIME (ONE_FULL_SYMBOL_TIME/NUMBER_OF_SAMPLES) // Czas w ms między kolejnymi odczytami z MPU6050 podczas nagrywania
 
 static MPU6050_Data ONE_BATCH[BATCH_SIZE] = {0}; // Tablica do przechowywania ostatnich 10 odczytów
 static MPU6050_Data Last_known_data = {0}; // Struktura do przechowywania ostatniego odczytu
@@ -112,23 +113,32 @@ int main(void)
   HAL_UART_Transmit(&huart1, (uint8_t*)test, strlen(test), 100);
   HAL_Delay(1000);
 
-  
+  ML_Init();
+  uint8_t current_batch_size = 0;
+  float out_confidence[4] = {0.0f};
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    if(HAL_GetTick() - Last_known_data.timestamp >= ONE_FULL_SYMBOL_TIME) {
+    if(HAL_GetTick() - Last_known_data.timestamp >= ONE_SAMPLE_TIME) {
         MPU6050_Read_All(&Last_known_data);
         MPU6050_Batch_Push_Data(&Last_known_data);
-
-        //now we can process via ML.
-        //here we prcecess this batch
-        
-
-        //after processing we can send result via UART or do something else with it.
-
+        current_batch_size++;
+        if(!(current_batch_size >= NUMBER_OF_SAMPLES)){
+          break;
+        }else{
+          //We have a full batch of 60 samples, we can process it via ML.
+          ONE_BATCH = MPU6050_Batch_Read();
+          //now we can process via ML.
+          //here we prcecess this batch
+          ML_RunInference((float*)ONE_BATCH, &out_confidence);
+          //after processing we can send result via UART or do something else with it.
+          char test[100];
+          snprintf(test, sizeof(test), "Wynik: %f %f %f %f\r\n", out_confidence[0], out_confidence[1], out_confidence[2], out_confidence[3]);
+          HAL_UART_Transmit(&huart1, (uint8_t*)test, strlen(test), 50);
+        }
     }
     /* USER CODE END WHILE */
 
