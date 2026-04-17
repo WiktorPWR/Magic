@@ -31,6 +31,13 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
+#define ONE_FULL_SYMBOL_TIME 2000 // Czas w ms między kolejnymi odczytami z MPU6050
+#define NUMBER_OF_SAMPLES 100 // Liczba próbek do zebrania podczas nagrywania
+#define ONE_SAMPLE_TIME (ONE_FULL_SYMBOL_TIME/NUMBER_OF_SAMPLES) // Czas w ms między kolejnymi odczytami z MPU6050 podczas nagrywania
+#define ONE_ML_RUN_INTERVAL 500
+
+static struct MPU6050_Data ONE_BATCH[BATCH_SIZE] = {0}; // Tablica do przechowywania ostatnich 10 odczytów
+static struct MPU6050_Data Last_known_data = {0}; // Struktura do przechowywania ostatniego odczytu
 
 /* USER CODE END PM */
 
@@ -50,14 +57,9 @@ static ai_network_params params;
  * Zapobiega to błędowi PRECISERR (BusFault) podczas dostępu silnika AI do danych.
  */
 
-__attribute__((aligned(32))) static uint8_t pool0[11264];
 
-__attribute__((aligned(32))) static float data_ins[300]; 
-__attribute__((aligned(32))) static float data_outs[4];
 
-/* * POPRAWKA 2: Zwiększony bufor UART, aby sprintf nie wykroczył poza pamięć.
- */
-char uart_buf[128]; 
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -120,7 +122,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+  SCB->CPACR |= ((3UL << 10*2)|(3UL << 11*2));
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -145,83 +147,71 @@ int main(void)
   MX_I2C1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  MPU6050_Init();
-  HAL_UART_Transmit(&huart1, (uint8_t*)"SYSTEM START\r\n", 14, 100);
 
-  I2C_Scan(); // Skanowanie I2C w poszukiwaniu urządzeń (dla debugowania)
-  // Inicjalizacja AI
-  MX_X_CUBE_AI_Init();
+  HAL_UART_Transmit(&huart1, (uint8_t*)test, strlen(test), 100);
+  HAL_Delay(1000);
 
-  // Pobranie wskaźników do wejść i wyjść modelu
-  ai_input = ai_network_inputs_get(network, NULL);
-  ai_output = ai_network_outputs_get(network, NULL);
+  ML_Init();
+  uint8_t current_batch_size = 0;
+  uint32_t last_time =0;
 
-  // SPRAWDZENIE: Czy wskaźniki są poprawne?
-  if ((ai_input == NULL) || (ai_output == NULL)) {
-      HAL_UART_Transmit(&huart1, (uint8_t*)"GET BUFFERS ERR\r\n", 17, 100);
-      while(1); 
-  }
-  // Powiązanie naszych fizycznych tablic z silnikiem AI
-  ai_input->data = AI_HANDLE_PTR(data_ins);
-  ai_output->data = AI_HANDLE_PTR(data_outs);
+  int vote_stats[4] = {0, 0, 0, 0}; // Licznik wygranych klas
+  uint32_t report_timer = HAL_GetTick();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    /* 1. Odczyt danych z sensora MPU6050. 
-       Funkcja ta powinna wypełnić tablicę ML_Input (50 próbek x 6 osi). */
-    if (MPU6050_Read_And_Set_ML_Input(&mpu6050_data) == HAL_OK) 
-    {
-        /* 2. Kopiowanie danych do bufora wejściowego sieci.
-           Używamy (float*) dla ML_Input, aby poprawnie skopiować 300 wartości float. */
-        memcpy(data_ins, ML_Input, 300 * sizeof(float));
+while (1)
+{
+  // --- 1. POBIERANIE PRÓBKI (np. co 20ms) ---
+    if(HAL_GetTick() - last_time >= ONE_SAMPLE_TIME) {
+        last_time = HAL_GetTick(); 
 
-        /* 3. Uruchomienie obliczeń sieci neuronowej.
-           Jeśli tu następuje HardFault, upewnij się, że stos (Stack) w CubeMX 
-           jest zwiększony do 0x2000. */
-        if (ai_network_run(network, &ai_input[0], &ai_output[0]) != 1) 
-        {
-            HAL_UART_Transmit(&huart1, (uint8_t*)"AI Run Error!\r\n", 15, 100);
+        MPU6050_Read_All(&Last_known_data);
+        MPU6050_Batch_Push_Data(&Last_known_data); // Zakładam, że to bufor kołowy (Circular Buffer)
+        
+        if(current_batch_size < NUMBER_OF_SAMPLES) {
+            current_batch_size++;
         }
-        else 
-        {
-            // 4. Wyniki klasyfikacji znajdują się w data_outs.
-            // Mnożymy przez 100, aby uzyskać wartość procentową (np. 0.85 -> 85)
-            int p0 = (int)(data_outs[0] * 100);
-            int p1 = (int)(data_outs[1] * 100);
-            int p2 = (int)(data_outs[2] * 100);
-            int p3 = (int)(data_outs[3] * 100);
 
-            // Używamy formatu %d zamiast %f
-            int len = sprintf(uart_buf, "G0: %d%% | G1: %d%% | G2: %d%% | G3: %d%%\r\n", p0, p1, p2, p3);
+        // --- 2. URUCHOMIENIE AI (Tylko jeśli mamy pełny bufor) ---
+        if(current_batch_size == NUMBER_OF_SAMPLES) {
+            MPU6050_Batch_Read(ONE_BATCH);
+            
+            float confidences[4] = {0.0f};
+            int predicted_class = ML_RunInference((float*)ONE_BATCH, confidences);
 
-            HAL_UART_Transmit(&huart1, (uint8_t*)uart_buf, len, 100);
-
-            /* 5. Prosta logika sterowania - wybieramy gest z pewnością powyżej 80%. */
-            if (data_outs[0] > 0.8f) {
-                HAL_UART_Transmit(&huart1, (uint8_t*)"WYKRYTO: GEST 0\r\n", 17, 100);
-            } 
-            else if (data_outs[1] > 0.8f) {
-                HAL_UART_Transmit(&huart1, (uint8_t*)"WYKRYTO: GEST 1\r\n", 17, 100);
-            }
-            else if (data_outs[2] > 0.8f) {
-                HAL_UART_Transmit(&huart1, (uint8_t*)"WYKRYTO: GEST 2\r\n", 17, 100);
-            }
-            else if (data_outs[3] > 0.8f) {
-                HAL_UART_Transmit(&huart1, (uint8_t*)"WYKRYTO: GEST 3\r\n", 17, 100);
+            // Głosujemy tylko, jeśli sieć jest pewna (np. powyżej 70%)
+            if(confidences[predicted_class] > 0.70f) {
+                vote_stats[predicted_class]++;
             }
         }
     }
-    else 
-    {
-        /* Błąd odczytu z I2C / MPU6050 */
-        HAL_UART_Transmit(&huart1, (uint8_t*)"MPU6050 Error!\r\n", 16, 100);
-    }
 
-    /* Krótka przerwa, aby nie zapchać procesora i UARTA */
-    HAL_Delay(50);
+    // --- 3. RAPORT CO 2 SEKUNDY ---
+    if(HAL_GetTick() - report_timer >= 2000) {
+        report_timer = HAL_GetTick();
+
+        // Znajdujemy, który gest zebrał najwięcej głosów
+        int winner = 0;
+        for(int i = 1; i < 4; i++) {
+            if(vote_stats[i] > vote_stats[winner]) winner = i;
+        }
+
+        char report[128];
+        if(vote_stats[winner] > 0) {
+            snprintf(report, sizeof(report), 
+                "\r\n>>> WYNIK 2s: Klasa %d (%d detekcji) | Staty: [0:%d, 1:%d, 2:%d, 3:%d]\r\n", 
+                winner, vote_stats[winner], vote_stats[0], vote_stats[1], vote_stats[2], vote_stats[3]);
+        } else {
+            snprintf(report, sizeof(report), "\r\n>>> WYNIK 2s: Brak pewnych gestow.\r\n");
+        }
+        
+        HAL_UART_Transmit(&huart1, (uint8_t*)report, strlen(report), 100);
+
+        // Resetujemy statystyki na kolejne 2 sekundy
+        memset(vote_stats, 0, sizeof(vote_stats));
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

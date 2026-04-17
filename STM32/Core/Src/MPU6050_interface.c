@@ -14,6 +14,35 @@ uint8_t check;
 uint8_t data;
 
 
+void I2C_BusRecovery(void){
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    // 1. Ustaw GPIO jako open-drain
+    GPIO_InitStruct.Pin = GPIO_PIN_6 | GPIO_PIN_7;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET); // SDA HIGH
+
+    // 2. Clock pulses na SCL
+    for(int i = 0; i < 9; i++)
+    {
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
+        HAL_Delay(1);
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
+        HAL_Delay(1);
+    }
+
+    // 3. STOP condition
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
+
+    HAL_Delay(1);
+}
+
+
 void I2C_Reset(void){
     HAL_I2C_DeInit(&hi2c1);
     HAL_I2C_Init(&hi2c1);
@@ -130,7 +159,17 @@ HAL_StatusTypeDef MPU6050_Read_All(struct MPU6050_Data* data) {
     // 1. Wykonaj swoje standardowe odczyty
     MPU6050_Read_Accel(data);
     MPU6050_Read_Gyro(data);
-    data->timestamp = HAL_GetTick(); // Dodaj timestamp do danych
+    //data->timestamp = HAL_GetTick(); // Dodaj timestamp do danych
+
+    // --- NORMALIZACJA ---
+    // Musisz rzutować na float i podzielić przez te same wartości co w Pythonie
+    data->Accel_X /= 2.0f;
+    data->Accel_Y /= 2.0f;
+    data->Accel_Z /= 2.0f;
+
+    data->Gyro_X /= 250.0f;
+    data->Gyro_Y /= 250.0f;
+    data->Gyro_Z /= 250.0f;
 
 
     // 2. Porównaj KAŻDĄ wartość z poprzednią (wszystkie 6 osi)
@@ -162,6 +201,23 @@ HAL_StatusTypeDef MPU6050_Read_All(struct MPU6050_Data* data) {
 }
 
 
+// --- Interface for BATCH PROCESSING ---
+
+
+static struct MPU6050_Data ONE_BATCH[BATCH_SIZE] = {0};
+
+void MPU6050_Batch_Read(struct MPU6050_Data one_batch[BATCH_SIZE]) {
+    memcpy(one_batch, ONE_BATCH, BATCH_SIZE * sizeof(struct MPU6050_Data));
+}
+
+void MPU6050_Batch_Push_Data(struct MPU6050_Data* new_data) {
+    memmove(&ONE_BATCH[0], &ONE_BATCH[1], (BATCH_SIZE - 1) * sizeof(struct MPU6050_Data));//Przesuwamy dane w lewo
+    ONE_BATCH[BATCH_SIZE - 1] = *new_data;
+    //memmove(ONE_BATCH + 1, ONE_BATCH, (BATCH_SIZE - 1) * sizeof(struct MPU6050_Data)); // Przesuń dane w prawo
+    //ONE_BATCH[0] = *new_data; // Wstaw nowe dane na początek
+}
+
+
 float ML_Input[50][6] = {0};
 
 HAL_StatusTypeDef MPU6050_Read_And_Set_ML_Input(struct MPU6050_Data* data) {
@@ -183,3 +239,4 @@ HAL_StatusTypeDef MPU6050_Read_And_Set_ML_Input(struct MPU6050_Data* data) {
     }
     return HAL_OK;
 }
+

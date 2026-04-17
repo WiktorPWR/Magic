@@ -1,141 +1,80 @@
 import os
 import pandas as pd
-import numpy as np
 import glob
+import numpy as np
 
 # --- KONFIGURACJA ---
 INPUT_DIR = "D:\\Pulpit\\STM\\Magic\\Magic\\Python_scripts\\raw_data"
 OUTPUT_DIR = "D:\\Pulpit\\STM\\Magic\\Magic\\Python_scripts\\cleaned_data"
 
-MIN_SAMPLES = 10  # filtr śmieci
+SAMPLES_PER_GESTURE = 100 
 
-# 🔥 MAPOWANIE folderów
 MODE_TO_LABEL = {
     "mode_0": "L",
     "mode_1": "kolo",
-    "mode_2": "krzyz"
+    "mode_2": "krzyz",
+    "mode_3": "tlo"
 }
-
-
-def compute_global_dt(all_files):
-    all_diffs = []
-
-    for file_path in all_files:
-        df = pd.read_csv(file_path)
-
-        df = df.sort_values(by='Relative_Time_ms')
-        df = df.drop_duplicates(subset=['Relative_Time_ms'])
-
-        if len(df) < MIN_SAMPLES:
-            continue
-
-        time_vals = df['Relative_Time_ms'].values
-        diffs = np.diff(time_vals)
-
-        if len(diffs) == 0:
-            continue
-
-        local_median = np.median(diffs)
-
-        # usuwamy outliery (np. dropy pakietów)
-        diffs = diffs[(diffs > 0) & (diffs < 3 * local_median)]
-
-        all_diffs.extend(diffs)
-
-    if not all_diffs:
-        raise ValueError("Brak danych do wyliczenia dt!")
-
-    return np.median(all_diffs)
-
 
 def process_files():
     all_files = glob.glob(os.path.join(INPUT_DIR, "mode_*", "*.csv"))
-
+    
     if not all_files:
         print("Brak plików!")
         return
 
-    print(f"Znaleziono {len(all_files)} plików")
+    # Słownik do tymczasowego przechowywania ramek danych przed balansem
+    data_storage = {label: [] for label in MODE_TO_LABEL.values()}
 
-    # 🔥 GLOBALNY dt
-    target_dt = compute_global_dt(all_files)
-
-    print(f"🔥 GLOBALNY dt: {target_dt:.3f} ms")
-    print("-" * 50)
-
-    columns = ['AX', 'AY', 'AZ', 'GX', 'GY', 'GZ']
-
-    processed = 0
-    skipped = 0
-
+    print("🔄 Krok 1: Wczytywanie i Normalizacja...")
     for file_path in all_files:
-
-        # 🔥 wyciągamy folder mode_X
         mode_folder = os.path.basename(os.path.dirname(file_path))
+        label = MODE_TO_LABEL.get(mode_folder)
+        if not label: continue
 
-        # 🔥 mapowanie na label
-        target_label = MODE_TO_LABEL.get(mode_folder)
-
-        if target_label is None:
-            print(f"❌ Nieznany folder: {mode_folder}")
-            skipped += 1
-            continue
-
-        # 🔥 nazwa pliku (z prefixem żeby uniknąć kolizji)
-        file_name = f"{mode_folder}_{os.path.basename(file_path)}"
-
-        # 🔥 katalog docelowy
-        target_dir = os.path.join(OUTPUT_DIR, target_label)
-        os.makedirs(target_dir, exist_ok=True)
-
-        target_file_path = os.path.join(target_dir, file_name)
-
-        # --- wczytanie ---
         df = pd.read_csv(file_path)
-
-        df = df.sort_values(by='Relative_Time_ms')
         df = df.drop_duplicates(subset=['Relative_Time_ms'])
 
-        if len(df) < MIN_SAMPLES:
-            print(f"❌ SKIP (za mało próbek): {file_path}")
-            skipped += 1
-            continue
+        # --- NORMALIZACJA FIZYCZNA ---
+        # Sprowadzamy dane do podobnej skali (TinyML/STM32 lubi małe floaty)
+        if all(col in df.columns for col in ['AX', 'AY', 'AZ', 'GX', 'GY', 'GZ']):
+            df[['AX', 'AY', 'AZ']] = df[['AX', 'AY', 'AZ']] / 2.0     # Zakładając +-2g
+            df[['GX', 'GY', 'GZ']] = df[['GX', 'GY', 'GZ']] / 250.0   # Zakładając +-250 dps
+        
+        # Cięcie na kawałki po 100 próbek
+        num_chunks = len(df) // SAMPLES_PER_GESTURE
+        for i in range(num_chunks):
+            start = i * SAMPLES_PER_GESTURE
+            chunk = df.iloc[start:start + SAMPLES_PER_GESTURE]
+            data_storage[label].append(chunk)
 
-        old_time = df['Relative_Time_ms'].values
+    # --- KROK 2: BALANSOWANIE ---
+    print("\n⚖️ Krok 2: Balansowanie klas...")
+    # Liczymy ile mamy przykładów w każdej klasie
+    counts = {label: len(chunks) for label, chunks in data_storage.items()}
+    for label, count in counts.items():
+        print(f" - {label}: {count} próbek")
 
-        # 🔥 liczba próbek po interpolacji
-        num_samples = int(np.floor((old_time[-1] - old_time[0]) / target_dt))
+    # Znajdujemy najmniejszą klasę (ale nie mniejszą niż np. 10, żeby nie zepsuć bazy)
+    min_samples = max(10, min(counts.values()))
+    print(f"\n🎯 Cel: Każda klasa zostanie ograniczona do {min_samples} przykładów.")
 
-        if num_samples < MIN_SAMPLES:
-            print(f"❌ SKIP (za krótki sygnał): {file_path}")
-            skipped += 1
-            continue
+    # --- KROK 3: ZAPISYWANIE ---
+    processed_total = 0
+    for label, chunks in data_storage.items():
+        target_dir = os.path.join(OUTPUT_DIR, label)
+        os.makedirs(target_dir, exist_ok=True)
+        
+        # Mieszamy próbki, żeby nie brać tylko tych z początku nagrania
+        np.random.shuffle(chunks)
+        balanced_chunks = chunks[:min_samples]
 
-        # 🔥 nowa siatka czasu
-        new_time = old_time[0] + np.arange(num_samples) * target_dt
-
-        new_df = pd.DataFrame()
-
-        # 🔥 nowy, równy czas (ms)
-        new_df['Time_ms'] = new_time - new_time[0]
-
-        # interpolacja
-        for col in columns:
-            new_df[col] = np.interp(new_time, old_time, df[col].values)
-
-        new_df = new_df.round(4)
-
-        # zapis
-        new_df.to_csv(target_file_path, index=False)
-
-        processed += 1
-        print(f"✅ {file_name} → {num_samples} próbek")
+        for idx, chunk in enumerate(balanced_chunks):
+            chunk.to_csv(os.path.join(target_dir, f"{label}_{idx}.csv"), index=False)
+            processed_total += 1
 
     print("-" * 50)
-    print(f"✔ Przetworzono: {processed}")
-    print(f"❌ Pominięto: {skipped}")
-    print("🎯 GOTOWE")
-
+    print(f"🎯 GOTOWE! Zapisano łącznie {processed_total} zbalansowanych i znormalizowanych plików.")
 
 if __name__ == "__main__":
     process_files()
