@@ -31,8 +31,9 @@ set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/network.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/network_data.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/network_data_params.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../startup_stm32f411xe.s
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/ML_interface.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/MPU6050_interface.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../startup_stm32f411xe.s
 )
 
 # STM32 HAL/LL Drivers
@@ -89,21 +90,6 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE ${MX_LINK_DIRS})
 
 # Add libraries to the project
 target_link_libraries(${CMAKE_PROJECT_NAME} ${MX_LINK_LIBS})
-
-# --- WYMUSZENIE SPRZĘTOWEGO FPU I OPTYMALIZACJI ---
-target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE
-    -mcpu=cortex-m4
-    -mfpu=fpv4-sp-d16
-    -mfloat-abi=hard
-    -Ofast
-)
-
-target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
-    -mcpu=cortex-m4
-    -mfpu=fpv4-sp-d16
-    -mfloat-abi=hard
-    -u _printf_float
-)
 
 # Add the map file to the list of files to be removed with 'clean' target
 set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES ADDITIONAL_CLEAN_FILES ${CMAKE_PROJECT_NAME}.map)
