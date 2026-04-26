@@ -8,6 +8,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "app_x-cube-ai.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -146,6 +147,7 @@ int main(void)
   MX_DMA_Init();
   MX_I2C1_Init();
   MX_USART1_UART_Init();
+  MX_X_CUBE_AI_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_UART_Transmit(&huart1, (uint8_t*)test, strlen(test), 100);
@@ -181,9 +183,9 @@ if(HAL_GetTick() - last_time >= ONE_SAMPLE_TIME) {
     // Licznik próbek do następnego uruchomienia AI
     prediction_trigger++;
 
-    // --- 2. URUCHOMIENIE AI (Co 20 próbek, jeśli bufor jest pełny) ---
-    // Zmieniamy warunek: nie czekamy na "pełne nowe 100", tylko na "nowe 20"
-    if(current_batch_size == NUMBER_OF_SAMPLES && prediction_trigger >= 10) {
+    // --- 2. URUCHOMIENIE AI (Co 50 próbek, jeśli bufor jest pełny) ---
+    // Zmieniamy warunek: nie czekamy na "pełne nowe 100", tylko na "nowe 50"
+    if(current_batch_size == NUMBER_OF_SAMPLES && prediction_trigger >= 50) {
         prediction_trigger = 0; // Resetujemy licznik wyzwalacza
 
         // Pobieramy ostatnie 100 próbek z bufora kołowego
@@ -225,6 +227,7 @@ if(HAL_GetTick() - last_time >= ONE_SAMPLE_TIME) {
     }
     /* USER CODE END WHILE */
 
+  MX_X_CUBE_AI_Process();
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */

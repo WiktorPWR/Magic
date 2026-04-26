@@ -1,21 +1,21 @@
 ST Edge AI Core v2.2.0-20266 2adc00962
-Created date          : 2026-04-20 18:28:48
-Parameters            : generate --target stm32f4 --name network -m D:/Pobrane/model_gestow (7).tflite --compression none --verbosity 1 -O time --workspace C:/Users/ostro/AppData/Local/Temp/mxAI_workspace16980977051040010409710177946354379 --output C:/Users/ostro/.stm32cubemx/network_output
+Created date          : 2026-04-26 23:46:28
+Parameters            : generate --target stm32f4 --name network -m D:/Pobrane/model_gestow (9).tflite --compression none --verbosity 1 -O time --workspace C:/Users/ostro/AppData/Local/Temp/mxAI_workspace31102683062140011933503026915395138 --output C:/Users/ostro/.stm32cubemx/network_output
 
 Exec/report summary (generate)
 -------------------------------------------------------------------------------------------------------------
-model file         :   D:\Pobrane\model_gestow (7).tflite                                                    
+model file         :   D:\Pobrane\model_gestow (9).tflite                                                    
 type               :   tflite                                                                                
 c_name             :   network                                                                               
 compression        :   none                                                                                  
 options            :   allocate-inputs, allocate-outputs                                                     
 optimization       :   time                                                                                  
 target/series      :   stm32f4                                                                               
-workspace dir      :   C:\Users\ostro\AppData\Local\Temp\mxAI_workspace16980977051040010409710177946354379   
+workspace dir      :   C:\Users\ostro\AppData\Local\Temp\mxAI_workspace31102683062140011933503026915395138   
 output dir         :   C:\Users\ostro\.stm32cubemx\network_output                                            
 model_fmt          :   float                                                                                 
-model_name         :   model_gestow_7                                                                        
-model_hash         :   0x418d687139f93297eb56f223dddf9976                                                    
+model_name         :   model_gestow_9                                                                        
+model_hash         :   0x68cf145570b8f4210e0abd62b27a17f5                                                    
 params #           :   58,084 items (226.89 KiB)                                                             
 -------------------------------------------------------------------------------------------------------------
 input 1/1          :   'serving_default_keras_tensor0', f32(1x100x6), 2.34 KBytes, activations               
@@ -27,7 +27,7 @@ ram (total)        :   39,168 B (38.25 KiB) = 39,168 + 0 + 0
 -------------------------------------------------------------------------------------------------------------
 (*) 'input'/'output' buffers are allocated in the activations buffer
 
-Model name - model_gestow_7
+Model name - model_gestow_9
 ------ ------------------------------------------ ---------------------- --------------- ----------- ------------------------------- --- --------------- ------------------ ------------------------------ 
 m_id   layer (type,original)                      oshape                 param/size             macc                    connected to   | c_size          c_macc             c_type                         
 ------ ------------------------------------------ ---------------------- --------------- ----------- ------------------------------- --- --------------- ------------------ ------------------------------ 
@@ -112,7 +112,7 @@ model/c-model: macc=2,096,384/2,096,384  weights=232,336/232,336  activations=--
 
 Generated C-graph summary
 ------------------------------------------------------------------------------------------------------------------------
-model name            : model_gestow_7
+model name            : model_gestow_9
 c-name                : network
 c-node #              : 17
 c-array #             : 37

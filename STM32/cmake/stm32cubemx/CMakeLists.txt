@@ -1,17 +1,17 @@
 cmake_minimum_required(VERSION 3.22)
-
 # Enable CMake support for ASM and C languages
 enable_language(C ASM)
-
 # STM32CubeMX generated symbols (macros)
-set(MX_Defines_Syms
-    USE_HAL_DRIVER
-    STM32F411xE
+set(MX_Defines_Syms 
+	USE_HAL_DRIVER 
+	STM32F411xE
     $<$<CONFIG:Debug>:DEBUG>
 )
 
 # STM32CubeMX generated include paths
 set(MX_Include_Dirs
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Middlewares/ST/AI/Inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App
@@ -31,8 +31,13 @@ set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/network.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/network_data.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/network_data_params.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/ML_interface.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/MPU6050_interface.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/aiSystemPerformance.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/aiTestHelper.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/aiTestUtility.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/ai_device_adaptor.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/lc_print.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/syscalls.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../X-CUBE-AI/App/app_x-cube-ai.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../startup_stm32f411xe.s
 )
 
@@ -59,19 +64,20 @@ set(STM32_Drivers_Src
 
 # Drivers Midllewares
 
+
+
 # Link directories setup
 set(MX_LINK_DIRS
 
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Middlewares/ST/AI/Lib
 )
-
 # Project static libraries
-set(MX_LINK_LIBS
-    :NetworkRuntime1020_CM4_GCC.a
+set(MX_LINK_LIBS  
+	:NetworkRuntime1020_CM4_GCC.a
     STM32_Drivers
     ${TOOLCHAIN_LINK_LIBRARIES}
+    
 )
-
 # Interface library for includes and symbols
 add_library(stm32cubemx INTERFACE)
 target_include_directories(stm32cubemx INTERFACE ${MX_Include_Dirs})
@@ -81,6 +87,7 @@ target_compile_definitions(stm32cubemx INTERFACE ${MX_Defines_Syms})
 add_library(STM32_Drivers OBJECT)
 target_sources(STM32_Drivers PRIVATE ${STM32_Drivers_Src})
 target_link_libraries(STM32_Drivers PUBLIC stm32cubemx)
+
 
 # Add STM32CubeMX generated application sources to the project
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE ${MX_Application_Src})
@@ -95,6 +102,6 @@ target_link_libraries(${CMAKE_PROJECT_NAME} ${MX_LINK_LIBS})
 set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES ADDITIONAL_CLEAN_FILES ${CMAKE_PROJECT_NAME}.map)
 
 # Validate that STM32CubeMX code is compatible with C standard
-if((CMAKE_C_STANDARD EQUAL 90) OR(CMAKE_C_STANDARD EQUAL 99))
+if((CMAKE_C_STANDARD EQUAL 90) OR (CMAKE_C_STANDARD EQUAL 99))
     message(ERROR "Generated code requires C11 or higher")
 endif()

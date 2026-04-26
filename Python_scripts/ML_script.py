@@ -8,6 +8,8 @@ import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import confusion_matrix
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Dropout
 
 # ==========================================
 # 1. WYPAKOWANIE DANYCH
@@ -70,33 +72,33 @@ print(f"✅ Załadowano {len(X)} przykładów.")
 print(f"📊 Kształt danych wejściowych (X): {X.shape} (Ilość, Próbki, Osie)")
 
 # ==========================================
-# 3. BUDOWA MODELU (POD STM32 / TinyML)
+# 3. BUDOWA MODELU (LSTM - Long Short-Term Memory)
+# ==========================================
+# ==========================================
+# 3. ZAKTUALIZOWANA BUDOWA MODELU (Poprawka pod TFLite)
 # ==========================================
 model = tf.keras.Sequential([
     tf.keras.layers.Input(shape=(MAX_SAMPLES, 6)),
 
-    # 1. Wyłapywanie lokalnych mikro-ruchów (szumy vs. początek ruchu)
-    tf.keras.layers.Conv1D(64, 5, padding='same', activation='relu'),
+    # Dodajemy unroll=True - to kluczowe dla konwersji TFLite
+    tf.keras.layers.LSTM(64, return_sequences=True, unroll=True),
     tf.keras.layers.BatchNormalization(),
-    tf.keras.layers.MaxPooling1D(2),
+    tf.keras.layers.Dropout(0.2),
 
-    # 2. Wyłapywanie szerszych zależności (kluczowe dla krzyża i litery L)
-    tf.keras.layers.Conv1D(128, 3, padding='same', activation='relu'),
+    tf.keras.layers.LSTM(32, return_sequences=False, unroll=True),
     tf.keras.layers.BatchNormalization(),
-    tf.keras.layers.MaxPooling1D(2),
 
-    # 3. Warstwa, która "rozumie" sekwencję (zamiast prostego Flatten)
-    tf.keras.layers.Conv1D(64, 3, padding='same', activation='relu'),
-    tf.keras.layers.GlobalAveragePooling1D(), 
-
-    # 4. Rozbudowana część decyzyjna
-    tf.keras.layers.Dense(64, activation='relu'),
-    tf.keras.layers.Dropout(0.3), # Ochrona przed przeuczeniem na tło
     tf.keras.layers.Dense(32, activation='relu'),
+    tf.keras.layers.Dropout(0.2),
     tf.keras.layers.Dense(len(CLASSES), activation='softmax')
 ])
 
-model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+model.compile(
+    optimizer='adam', 
+    loss='categorical_crossentropy', 
+    metrics=['accuracy']
+)
+
 model.summary()
 
 # ==========================================
@@ -139,13 +141,21 @@ plt.tight_layout()
 plt.show()
 
 # ==========================================
-# 6. EXPORT DO TFLITE
+# 6. ZAKTUALIZOWANY EXPORT
 # ==========================================
 print("📦 Konwertowanie modelu do formatu .tflite...")
 converter = tf.lite.TFLiteConverter.from_keras_model(model)
+
+# Te flagi pomagają przy problematycznych operacjach
+converter.target_spec.supported_ops = [
+    tf.lite.OpsSet.TFLITE_BUILTINS, # Standardowe operacje TFLite
+    tf.lite.OpsSet.SELECT_TF_OPS    # Pozwala na dodatkowe operacje TF, jeśli są potrzebne
+]
+
+# Opcjonalnie: optymalizacja rozmiaru (ułatwia życie na STM32)
+converter.optimizations = [tf.lite.Optimize.DEFAULT]
+
 tflite_model = converter.convert()
 
 with open('model_gestow.tflite', 'wb') as f:
     f.write(tflite_model)
-
-print("✅ GOTOWE! Możesz pobrać plik 'model_gestow.tflite' z panelu plików.")
