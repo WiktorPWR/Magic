@@ -8,7 +8,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "app_x-cube-ai.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -75,6 +74,9 @@ static void MX_USART1_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+AI_ALIGNED(32)
+static ai_u8 pool0[AI_NETWORK_DATA_ACTIVATIONS_SIZE];
+
 /**
  * POPRAWKA 3: Kompletna i bezpieczna funkcja inicjalizacji.
  * Przekazuje uchwyt 'network' do funkcji pobierających bufory wag i aktywacji.
@@ -147,9 +149,8 @@ int main(void)
   MX_DMA_Init();
   MX_I2C1_Init();
   MX_USART1_UART_Init();
-  MX_X_CUBE_AI_Init();
   /* USER CODE BEGIN 2 */
-
+ char test[] = "\r\n>>> START\r\n";
   HAL_UART_Transmit(&huart1, (uint8_t*)test, strlen(test), 100);
   HAL_Delay(1000);
 
@@ -227,7 +228,6 @@ if(HAL_GetTick() - last_time >= ONE_SAMPLE_TIME) {
     }
     /* USER CODE END WHILE */
 
-  MX_X_CUBE_AI_Process();
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */

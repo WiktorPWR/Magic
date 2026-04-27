@@ -1,30 +1,30 @@
 ST Edge AI Core v2.2.0-20266 2adc00962
-Created date          : 2026-04-26 23:46:28
-Parameters            : generate --target stm32f4 --name network -m D:/Pobrane/model_gestow (9).tflite --compression none --verbosity 1 -O time --workspace C:/Users/ostro/AppData/Local/Temp/mxAI_workspace31102683062140011933503026915395138 --output C:/Users/ostro/.stm32cubemx/network_output
+Created date          : 2026-04-27 17:17:46
+Parameters            : generate --target stm32f4 --name network -m D:/Pobrane/model_gestow (9).tflite --compression none --verbosity 1 -O time --workspace C:/Users/ostro/AppData/Local/Temp/mxAI_workspace1290945876680010259630007934895794 --output C:/Users/ostro/.stm32cubemx/network_output
 
 Exec/report summary (generate)
--------------------------------------------------------------------------------------------------------------
-model file         :   D:\Pobrane\model_gestow (9).tflite                                                    
-type               :   tflite                                                                                
-c_name             :   network                                                                               
-compression        :   none                                                                                  
-options            :   allocate-inputs, allocate-outputs                                                     
-optimization       :   time                                                                                  
-target/series      :   stm32f4                                                                               
-workspace dir      :   C:\Users\ostro\AppData\Local\Temp\mxAI_workspace31102683062140011933503026915395138   
-output dir         :   C:\Users\ostro\.stm32cubemx\network_output                                            
-model_fmt          :   float                                                                                 
-model_name         :   model_gestow_9                                                                        
-model_hash         :   0x68cf145570b8f4210e0abd62b27a17f5                                                    
-params #           :   58,084 items (226.89 KiB)                                                             
--------------------------------------------------------------------------------------------------------------
-input 1/1          :   'serving_default_keras_tensor0', f32(1x100x6), 2.34 KBytes, activations               
-output 1/1         :   'nl_23', f32(1x4), 16 Bytes, activations                                              
-macc               :   2,096,384                                                                             
-weights (ro)       :   232,336 B (226.89 KiB) (1 segment)                                                    
-activations (rw)   :   39,168 B (38.25 KiB) (1 segment) *                                                    
-ram (total)        :   39,168 B (38.25 KiB) = 39,168 + 0 + 0                                                 
--------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+model file         :   D:\Pobrane\model_gestow (9).tflite                                                   
+type               :   tflite                                                                               
+c_name             :   network                                                                              
+compression        :   none                                                                                 
+options            :   allocate-inputs, allocate-outputs                                                    
+optimization       :   time                                                                                 
+target/series      :   stm32f4                                                                              
+workspace dir      :   C:\Users\ostro\AppData\Local\Temp\mxAI_workspace1290945876680010259630007934895794   
+output dir         :   C:\Users\ostro\.stm32cubemx\network_output                                           
+model_fmt          :   float                                                                                
+model_name         :   model_gestow_9                                                                       
+model_hash         :   0x68cf145570b8f4210e0abd62b27a17f5                                                   
+params #           :   58,084 items (226.89 KiB)                                                            
+------------------------------------------------------------------------------------------------------------
+input 1/1          :   'serving_default_keras_tensor0', f32(1x100x6), 2.34 KBytes, activations              
+output 1/1         :   'nl_23', f32(1x4), 16 Bytes, activations                                             
+macc               :   2,096,384                                                                            
+weights (ro)       :   232,336 B (226.89 KiB) (1 segment)                                                   
+activations (rw)   :   39,168 B (38.25 KiB) (1 segment) *                                                   
+ram (total)        :   39,168 B (38.25 KiB) = 39,168 + 0 + 0                                                
+------------------------------------------------------------------------------------------------------------
 (*) 'input'/'output' buffers are allocated in the activations buffer
 
 Model name - model_gestow_9

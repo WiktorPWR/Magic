@@ -1088,44 +1088,44 @@
   ],
   "environment": {
     "generated_model": {
-      "generated_time": "2026-04-27T17:17:44+0200",
+      "generated_time": "2026-04-27T17:14:06+0200",
       "model_files": [
         {
           "name": "network_data_params.h",
-          "signature": "0x27aac53ca67765e2b652fd31d837e3bf"
+          "signature": "0x903422cb33f15c444bde5b2a40c54704"
         },
         {
           "name": "network_data_params.c",
-          "signature": "0x610ac4f166ee9c2aa6a5443e3b2cb426"
+          "signature": "0xe5ac01561eb867918a631566a68ed6f2"
         },
         {
           "name": "network_data.h",
-          "signature": "0x620207c259ccb23d3ab272c34a16d5b0"
+          "signature": "0x1fe2fe0609c0734c393e0bfe26ee3f2f"
         },
         {
           "name": "network_data.c",
-          "signature": "0xf7c8d38c47a3573d6d0c74a326efc434"
+          "signature": "0x025633c35b3c8dca7735e6d5355bd408"
         },
         {
           "name": "network_config.h",
-          "signature": "0x1868f2d49a43e08e113187f33e5ee215"
+          "signature": "0x50eb40a332fedec6961ff04198326104"
         },
         {
           "name": "network.h",
-          "signature": "0x2d03f503b581bb4fb2e837daf388746a"
+          "signature": "0x78bcc7807c427272e0bdf540b5ccfa9f"
         },
         {
           "name": "network.c",
-          "signature": "0xe592129e3949b7fc9df31028846ff91c"
+          "signature": "0xa262cd0dbb7ade143f4c69198c6ca64a"
         }
       ],
       "name": "network"
     },
-    "network_signature": "0x9bab7d13d3c5684c",
+    "network_signature": "0x5be55138405d88fa",
     "test_name": "",
     "tools": [
       {
-        "arguments": "generate --target stm32f4 --name network -m D:/Pobrane/model_gestow (9).tflite --compression none --verbosity 1 -O time --workspace C:/Users/ostro/AppData/Local/Temp/mxAI_workspace1290945876680010259630007934895794 --output C:/Users/ostro/.stm32cubemx/network_output",
+        "arguments": "generate --target stm32f4 --name network -m D:/Pobrane/model_gestow (9).tflite --compression none --verbosity 1 -O time --workspace C:/Users/ostro/AppData/Local/Temp/mxAI_workspace126213659731004656428297817456144 --output C:/Users/ostro/.stm32cubemx/network_output",
         "environment": [
           "STATS_TYPE=X-CUBE-AI"
         ],
