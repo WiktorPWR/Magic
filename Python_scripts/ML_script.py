@@ -8,26 +8,29 @@ import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import confusion_matrix
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Dropout
 
 # ==========================================
 # 1. WYPAKOWANIE DANYCH
 # ==========================================
 # Zakładamy, że plik nazywa się data.zip i jest w głównym katalogu Colaba
-if os.path.exists('augmented_data.zip'):
-    with zipfile.ZipFile('augmented_data.zip', 'r') as zip_ref:
+ZIP_FILE_PATH = '/content/sample_data/augmented_data.zip'
+if os.path.exists(ZIP_FILE_PATH):
+    with zipfile.ZipFile(ZIP_FILE_PATH, 'r') as zip_ref:
         zip_ref.extractall('dataset')
     print("✅ Dane wypakowane pomyślnie!")
 else:
-    print("❌ BŁĄD: Nie znaleziono pliku data.zip! Wgraj go do panelu po lewej.")
+    print("❌ BŁĄD: Nie znaleziono pliku augmented_data.zip! Wgraj go do panelu po lewej.")
 
 # ==========================================
 # 2. KONFIGURACJA I ŁADOWANIE DANYCH
 # ==========================================
-# Ścieżka zależy od tego, jak spakowałeś foldery. 
+# Ścieżka zależy od tego, jak spakowałeś foldery.
 # Jeśli w ZIPie był folder 'augmented_data', to ścieżka poniżej jest poprawna:
-DATA_PATH = "dataset/augmented_data" 
-CLASSES = ['L', 'kolo', 'krzyz']
-MAX_SAMPLES = 50  # Ilość próbek na jeden gest (dopasuj do swoich danych)
+DATA_PATH = "dataset/augmented_data"
+CLASSES = ['L', 'kolo', 'krzyz','tlo']
+MAX_SAMPLES = 100  # Ilość próbek na jeden gest (dopasuj do swoich danych)
 
 X = []
 y = []
@@ -38,19 +41,19 @@ for label in CLASSES:
     if not os.path.exists(class_path):
         print(f"⚠️ Uwaga: Folder {label} nie istnieje w {DATA_PATH}")
         continue
-        
+
     files = [f for f in os.listdir(class_path) if f.endswith('.csv')]
     for file in files:
         df = pd.read_csv(os.path.join(class_path, file))
         # Wybieramy osie czujników
         data = df[['AX', 'AY', 'AZ', 'GX', 'GY', 'GZ']].values
-        
+
         # Standaryzacja długości (Padding/Truncating)
         if len(data) > MAX_SAMPLES:
             data = data[:MAX_SAMPLES]
         else:
             data = np.pad(data, ((0, MAX_SAMPLES - len(data)), (0, 0)), mode='constant')
-        
+
         X.append(data)
         y.append(label)
 
@@ -69,27 +72,40 @@ print(f"✅ Załadowano {len(X)} przykładów.")
 print(f"📊 Kształt danych wejściowych (X): {X.shape} (Ilość, Próbki, Osie)")
 
 # ==========================================
-# 3. BUDOWA MODELU (POD STM32 / TinyML)
+# 3. BUDOWA MODELU (LSTM - Long Short-Term Memory)
+# ==========================================
+# ==========================================
+# 3. ZAKTUALIZOWANA BUDOWA MODELU (Poprawka pod TFLite)
 # ==========================================
 model = tf.keras.Sequential([
     tf.keras.layers.Input(shape=(MAX_SAMPLES, 6)),
-    tf.keras.layers.Conv1D(32, 3, activation='relu'),
-    tf.keras.layers.MaxPooling1D(2),
-    tf.keras.layers.Conv1D(16, 3, activation='relu'),
-    tf.keras.layers.Flatten(),
-    tf.keras.layers.Dense(16, activation='relu'),
-    tf.keras.layers.Dropout(0.3), # Zapobiega przeuczeniu
+
+    # Dodajemy unroll=True - to kluczowe dla konwersji TFLite
+    tf.keras.layers.LSTM(64, return_sequences=True, unroll=True),
+    tf.keras.layers.BatchNormalization(),
+    tf.keras.layers.Dropout(0.2),
+
+    tf.keras.layers.LSTM(32, return_sequences=False, unroll=True),
+    tf.keras.layers.BatchNormalization(),
+
+    tf.keras.layers.Dense(32, activation='relu'),
+    tf.keras.layers.Dropout(0.2),
     tf.keras.layers.Dense(len(CLASSES), activation='softmax')
 ])
 
-model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+model.compile(
+    optimizer='adam', 
+    loss='categorical_crossentropy', 
+    metrics=['accuracy']
+)
+
 model.summary()
 
 # ==========================================
 # 4. TRENOWANIE
 # ==========================================
-print("\n🚀 Start trenowania...")
-history = model.fit(X_train, y_train, epochs=60, validation_data=(X_test, y_test), batch_size=32, verbose=1)
+print("🚀 Start trenowania...")
+history = model.fit(X_train, y_train, epochs=100, validation_data=(X_test, y_test), batch_size=32, verbose=1)
 
 # ==========================================
 # 5. GENEROWANIE WYKRESÓW
@@ -125,13 +141,21 @@ plt.tight_layout()
 plt.show()
 
 # ==========================================
-# 6. EXPORT DO TFLITE
+# 6. ZAKTUALIZOWANY EXPORT
 # ==========================================
-print("\n📦 Konwertowanie modelu do formatu .tflite...")
+print("📦 Konwertowanie modelu do formatu .tflite...")
 converter = tf.lite.TFLiteConverter.from_keras_model(model)
+
+# Te flagi pomagają przy problematycznych operacjach
+converter.target_spec.supported_ops = [
+    tf.lite.OpsSet.TFLITE_BUILTINS, # Standardowe operacje TFLite
+    tf.lite.OpsSet.SELECT_TF_OPS    # Pozwala na dodatkowe operacje TF, jeśli są potrzebne
+]
+
+# Opcjonalnie: optymalizacja rozmiaru (ułatwia życie na STM32)
+converter.optimizations = [tf.lite.Optimize.DEFAULT]
+
 tflite_model = converter.convert()
 
 with open('model_gestow.tflite', 'wb') as f:
     f.write(tflite_model)
-
-print("✅ GOTOWE! Możesz pobrać plik 'model_gestow.tflite' z panelu plików.")

@@ -74,6 +74,9 @@ static void MX_USART1_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+AI_ALIGNED(32)
+static ai_u8 pool0[AI_NETWORK_DATA_ACTIVATIONS_SIZE];
+
 /**
  * POPRAWKA 3: Kompletna i bezpieczna funkcja inicjalizacji.
  * Przekazuje uchwyt 'network' do funkcji pobierających bufory wag i aktywacji.
@@ -147,7 +150,7 @@ int main(void)
   MX_I2C1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-
+ char test[] = "\r\n>>> START\r\n";
   HAL_UART_Transmit(&huart1, (uint8_t*)test, strlen(test), 100);
   HAL_Delay(1000);
 
@@ -164,29 +167,40 @@ int main(void)
 while (1)
 {
   // --- 1. POBIERANIE PRÓBKI (np. co 20ms) ---
-    if(HAL_GetTick() - last_time >= ONE_SAMPLE_TIME) {
-        last_time = HAL_GetTick(); 
+    // Dodaj zmienną pomocniczą na górze (globalnie lub static)
+static int prediction_trigger = 0; 
 
-        MPU6050_Read_All(&Last_known_data);
-        MPU6050_Batch_Push_Data(&Last_known_data); // Zakładam, że to bufor kołowy (Circular Buffer)
+// --- 1. POBIERANIE DANYCH ---
+if(HAL_GetTick() - last_time >= ONE_SAMPLE_TIME) {
+    last_time = HAL_GetTick(); 
+
+    MPU6050_Read_All(&Last_known_data);
+    MPU6050_Batch_Push_Data(&Last_known_data); // Bufor kołowy o rozmiarze 100
+    
+    if(current_batch_size < NUMBER_OF_SAMPLES) {
+        current_batch_size++;
+    }
+
+    // Licznik próbek do następnego uruchomienia AI
+    prediction_trigger++;
+
+    // --- 2. URUCHOMIENIE AI (Co 50 próbek, jeśli bufor jest pełny) ---
+    // Zmieniamy warunek: nie czekamy na "pełne nowe 100", tylko na "nowe 50"
+    if(current_batch_size == NUMBER_OF_SAMPLES && prediction_trigger >= 50) {
+        prediction_trigger = 0; // Resetujemy licznik wyzwalacza
+
+        // Pobieramy ostatnie 100 próbek z bufora kołowego
+        MPU6050_Batch_Read(ONE_BATCH);
         
-        if(current_batch_size < NUMBER_OF_SAMPLES) {
-            current_batch_size++;
-        }
+        float confidences[4] = {0.0f};
+        int predicted_class = ML_RunInference((float*)ONE_BATCH, confidences);
 
-        // --- 2. URUCHOMIENIE AI (Tylko jeśli mamy pełny bufor) ---
-        if(current_batch_size == NUMBER_OF_SAMPLES) {
-            MPU6050_Batch_Read(ONE_BATCH);
-            
-            float confidences[4] = {0.0f};
-            int predicted_class = ML_RunInference((float*)ONE_BATCH, confidences);
-
-            // Głosujemy tylko, jeśli sieć jest pewna (np. powyżej 70%)
-            if(confidences[predicted_class] > 0.70f) {
-                vote_stats[predicted_class]++;
-            }
+        // Głosowanie (zwiększony próg dla pewności przy częstym próbkowaniu)
+        if(confidences[predicted_class] > 0.80f) {
+            vote_stats[predicted_class]++;
         }
     }
+}
 
     // --- 3. RAPORT CO 2 SEKUNDY ---
     if(HAL_GetTick() - report_timer >= 2000) {

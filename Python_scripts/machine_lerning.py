@@ -7,7 +7,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 # --- KONFIGURACJA ---
-TFLITE_MODEL_PATH = r"modele\model_gestow (6).tflite" 
+TFLITE_MODEL_PATH = r"modele\model_gestow (9).tflite" 
 DATA_DIR = r"D:\Pulpit\STM\Magic\Magic\Python_scripts\augmented_data"
 CLASSES = ['L', 'kolo', 'krzyz', 'tlo']
 # ZMIANA: Teraz oczekujemy 100 próbek (wierszy) na gest
